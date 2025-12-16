@@ -167,13 +167,24 @@ router.post('/upload', authenticate, uploadVideo.single('video'), asyncHandler(a
   const videoPath = req.file.path;
 
   try {
-    // Get video metadata
-    const metadata = await videoProcessor.getMetadata(videoPath);
+    // Get video metadata with fallback
+    let metadata = { duration: 0, fileSize: req.file.size, video: null, audio: null };
+    try {
+      metadata = await videoProcessor.getMetadata(videoPath);
+    } catch (metaErr) {
+      console.error('Could not get video metadata:', metaErr.message);
+    }
 
-    // Generate thumbnail
+    // Generate thumbnail with fallback to null (frontend will show placeholder)
     const thumbnailDir = path.join(__dirname, '../../uploads/thumbnails');
-    const thumbnailPath = await videoProcessor.generateThumbnail(videoPath, thumbnailDir);
-    const thumbnailUrl = `/uploads/thumbnails/${path.basename(thumbnailPath)}`;
+    let thumbnailUrl = null;
+    try {
+      const thumbnailPath = await videoProcessor.generateThumbnail(videoPath, thumbnailDir);
+      thumbnailUrl = `/uploads/thumbnails/${path.basename(thumbnailPath)}`;
+    } catch (thumbErr) {
+      console.error('Could not generate thumbnail:', thumbErr.message);
+      // Continue without thumbnail - video will still be uploaded
+    }
 
     // Move video to permanent location
     const videoDir = path.join(__dirname, '../../uploads/videos');
@@ -181,8 +192,13 @@ router.post('/upload', authenticate, uploadVideo.single('video'), asyncHandler(a
     await fs.rename(videoPath, finalVideoPath);
     const videoUrl = `/uploads/videos/${videoId}${path.extname(req.file.originalname)}`;
 
-    // Generate content fingerprint
-    const contentIdHash = await videoProcessor.generateContentFingerprint(finalVideoPath);
+    // Generate content fingerprint with fallback
+    let contentIdHash = null;
+    try {
+      contentIdHash = await videoProcessor.generateContentFingerprint(finalVideoPath);
+    } catch (hashErr) {
+      console.error('Could not generate content fingerprint:', hashErr.message);
+    }
 
     // Insert video record
     await query(`

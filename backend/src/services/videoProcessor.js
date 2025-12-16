@@ -45,19 +45,50 @@ class VideoProcessor {
     });
   }
 
-  async generateThumbnail(videoPath, outputDir, timestamp = '00:00:05') {
+  async generateThumbnail(videoPath, outputDir, timestamp = null) {
     const thumbnailName = `${uuidv4()}.jpg`;
     const thumbnailPath = path.join(outputDir, thumbnailName);
+    
+    // Get video duration to determine safe timestamp
+    let safeTimestamp = '00:00:01';
+    try {
+      const metadata = await this.getMetadata(videoPath);
+      const duration = metadata.duration || 0;
+      if (duration > 5) {
+        safeTimestamp = '00:00:05';
+      } else if (duration > 2) {
+        safeTimestamp = '00:00:01';
+      } else if (duration > 0) {
+        safeTimestamp = '00:00:00.5';
+      }
+    } catch (e) {
+      console.log('Could not get duration, using 1 second timestamp');
+    }
+    
     return new Promise((resolve, reject) => {
       ffmpeg(videoPath)
+        .inputOptions(['-y']) // Overwrite output
         .screenshots({
-          timestamps: [timestamp],
+          timestamps: [timestamp || safeTimestamp],
           filename: thumbnailName,
           folder: outputDir,
-          size: '1280x720'
+          size: '1280x?'  // Maintain aspect ratio
         })
         .on('end', () => resolve(thumbnailPath))
-        .on('error', reject);
+        .on('error', (err) => {
+          console.error('Thumbnail generation failed:', err.message);
+          // Try alternative method with first frame
+          ffmpeg(videoPath)
+            .inputOptions(['-y'])
+            .outputOptions(['-vframes', '1', '-q:v', '2'])
+            .output(thumbnailPath)
+            .on('end', () => resolve(thumbnailPath))
+            .on('error', (err2) => {
+              console.error('Fallback thumbnail failed:', err2.message);
+              reject(err2);
+            })
+            .run();
+        });
     });
   }
 
