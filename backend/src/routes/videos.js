@@ -213,6 +213,32 @@ router.post('/upload', authenticate, uploadVideo.single('video'), asyncHandler(a
       }
     }
 
+    // Notify subscribers of new video (check preferences)
+    if (visibility === 'public') {
+      const [channelInfo] = await query('SELECT name FROM channels WHERE id = ?', [channelId]);
+      const subscribers = await query(`
+        SELECT s.subscriber_id, up.notify_new_videos
+        FROM subscriptions s
+        LEFT JOIN user_preferences up ON s.subscriber_id = up.user_id
+        WHERE s.channel_id = ? AND s.notifications_enabled = TRUE
+      `, [channelId]);
+
+      const io = req.app.get('io');
+      for (const sub of subscribers) {
+        // Check if subscriber wants new video notifications (default true if no prefs)
+        const wantsNotif = sub.notify_new_videos === null || sub.notify_new_videos !== 0;
+        if (wantsNotif) {
+          const notifId = uuidv4();
+          await query(`
+            INSERT INTO notifications (id, user_id, type, title, message, link, thumbnail_url)
+            VALUES (?, ?, 'new_video', 'Nouvelle vidéo', ?, ?, ?)
+          `, [notifId, sub.subscriber_id, `${channelInfo.name} a publié: ${title || 'Sans titre'}`, `/watch/${videoId}`, thumbnailUrl]);
+          
+          io.to(`user:${sub.subscriber_id}`).emit('notification', { type: 'new_video' });
+        }
+      }
+    }
+
     res.status(201).json({
       message: 'Vidéo uploadée avec succès',
       video: {

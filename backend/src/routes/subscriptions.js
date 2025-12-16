@@ -34,15 +34,23 @@ router.post('/:channelId', authenticate, asyncHandler(async (req, res) => {
 
   await query('UPDATE channels SET subscriber_count = subscriber_count + 1 WHERE id = ?', [channelId]);
 
-  // Send notification
-  const notifId = uuidv4();
-  await query(`
-    INSERT INTO notifications (id, user_id, type, title, message, link)
-    VALUES (?, ?, 'subscription', 'Nouvel abonné', ?, ?)
-  `, [notifId, channel.user_id, `${req.user.display_name} s'est abonné à votre chaîne`, `/channel/${channel.id}`]);
+  // Check if channel owner wants subscription notifications
+  const [prefs] = await query(
+    'SELECT notify_subscribers FROM user_preferences WHERE user_id = ?',
+    [channel.user_id]
+  );
+  const wantsNotif = !prefs || prefs.notify_subscribers !== 0;
 
-  const io = req.app.get('io');
-  io.to(`user:${channel.user_id}`).emit('notification', { type: 'subscription' });
+  if (wantsNotif) {
+    const notifId = uuidv4();
+    await query(`
+      INSERT INTO notifications (id, user_id, type, title, message, link)
+      VALUES (?, ?, 'subscription', 'Nouvel abonné', ?, ?)
+    `, [notifId, channel.user_id, `${req.user.display_name} s'est abonné à votre chaîne`, `/channel/${channel.id}`]);
+
+    const io = req.app.get('io');
+    io.to(`user:${channel.user_id}`).emit('notification', { type: 'subscription' });
+  }
 
   res.json({ message: 'Abonnement réussi' });
 }));

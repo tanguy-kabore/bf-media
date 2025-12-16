@@ -90,18 +90,15 @@ export default function Home() {
           <p className="text-dark-400 text-base sm:text-lg">Aucune vidéo disponible</p>
           <p className="text-dark-500 mt-2 text-sm sm:text-base">Soyez le premier à uploader une vidéo !</p>
         </div>
-      ) : isMobile ? (
-        // Mobile: compact horizontal list
-        <div className="space-y-3 mt-4">
+      ) : (
+        // Responsive grid with compact cards
+        <div className={`mt-4 ${
+          isMobile 
+            ? 'space-y-3' 
+            : 'grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+        }`}>
           {videos.map((video) => (
             <VideoCard key={video.id} video={video} compact />
-          ))}
-        </div>
-      ) : (
-        // Desktop: grid layout
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-4">
-          {videos.map((video) => (
-            <VideoCard key={video.id} video={video} />
           ))}
         </div>
       )}

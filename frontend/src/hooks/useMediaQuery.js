@@ -21,3 +21,7 @@ export function useMediaQuery(query) {
 export function useIsMobile() {
   return useMediaQuery('(max-width: 639px)')
 }
+
+export function useIsTablet() {
+  return useMediaQuery('(min-width: 640px) and (max-width: 1023px)')
+}

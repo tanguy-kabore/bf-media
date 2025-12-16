@@ -110,17 +110,25 @@ router.post('/video/:videoId', authenticate, asyncHandler(async (req, res) => {
     await query('UPDATE comments SET reply_count = reply_count + 1 WHERE id = ?', [parentId]);
   }
 
-  // Send notification to video owner
+  // Send notification to video owner (check preferences first)
   const [channel] = await query('SELECT user_id FROM channels WHERE id = ?', [video.channel_id]);
   if (channel.user_id !== req.user.id) {
-    const notifId = uuidv4();
-    await query(`
-      INSERT INTO notifications (id, user_id, type, title, message, link)
-      VALUES (?, ?, 'comment', 'Nouveau commentaire', ?, ?)
-    `, [notifId, channel.user_id, `${req.user.display_name} a commenté votre vidéo`, `/watch/${videoId}`]);
+    const [prefs] = await query(
+      'SELECT notify_comments FROM user_preferences WHERE user_id = ?',
+      [channel.user_id]
+    );
+    const wantsNotif = !prefs || prefs.notify_comments !== 0;
 
-    const io = req.app.get('io');
-    io.to(`user:${channel.user_id}`).emit('notification', { type: 'comment' });
+    if (wantsNotif) {
+      const notifId = uuidv4();
+      await query(`
+        INSERT INTO notifications (id, user_id, type, title, message, link)
+        VALUES (?, ?, 'comment', 'Nouveau commentaire', ?, ?)
+      `, [notifId, channel.user_id, `${req.user.display_name} a commenté votre vidéo`, `/watch/${videoId}`]);
+
+      const io = req.app.get('io');
+      io.to(`user:${channel.user_id}`).emit('notification', { type: 'comment' });
+    }
   }
 
   res.status(201).json({

@@ -101,14 +101,14 @@ export default function Navbar({ onMenuClick }) {
 
       {/* Main Navbar */}
       <nav className="fixed top-0 left-0 right-0 h-14 bg-dark-950/95 backdrop-blur-sm border-b border-dark-800 z-50 px-2 sm:px-4">
-        <div className="flex items-center justify-between h-full gap-2 sm:gap-4 max-w-full overflow-hidden">
+        <div className="flex items-center justify-between h-full gap-2 sm:gap-4 max-w-full">
           {/* Left: Menu + Logo */}
           <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
-            <button onClick={onMenuClick} className="p-2 hover:bg-dark-800 rounded-full flex-shrink-0">
+            <button onClick={onMenuClick} className="p-2 hover:bg-dark-800 rounded-full flex-shrink-0 flex items-center justify-center">
               <FiMenu className="w-5 h-5" />
             </button>
             <Link to="/" className="flex items-center flex-shrink-0">
-              <span className="text-xl sm:text-2xl font-bold text-white">TIPOKO</span>
+              <span className="text-lg sm:text-xl font-bold text-white leading-none">TIPOKO</span>
             </Link>
           </div>
 
@@ -158,7 +158,7 @@ export default function Navbar({ onMenuClick }) {
               </Link>
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 hover:bg-dark-800 rounded-full relative hidden sm:flex"
+                className="p-2 hover:bg-dark-800 rounded-full relative hidden sm:flex items-center justify-center"
               >
                 <FiBell className="w-5 h-5" />
               </button>
