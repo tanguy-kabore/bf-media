@@ -21,7 +21,7 @@ const formatViews = (views) => {
   return views.toString()
 }
 
-export default function VideoCard({ video, horizontal = false }) {
+export default function VideoCard({ video, horizontal = false, compact = false }) {
   const { isAuthenticated } = useAuthStore()
   const [showMenu, setShowMenu] = useState(false)
   const timeAgo = video.published_at 
@@ -75,6 +75,43 @@ export default function VideoCard({ video, horizontal = false }) {
             {formatViews(video.view_count)} vues • {timeAgo}
           </p>
         </Link>
+      </div>
+    )
+  }
+
+  // Compact horizontal layout for mobile
+  if (compact) {
+    return (
+      <div className="flex gap-3 group">
+        <Link to={`/watch/${video.id}`} className="relative w-36 xs:w-40 flex-shrink-0 aspect-video rounded-lg overflow-hidden bg-dark-800">
+          <img
+            src={video.thumbnail_url || '/placeholder.jpg'}
+            alt={video.title}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+          {video.duration > 0 && (
+            <span className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/80 text-white text-xs font-medium rounded">
+              {formatDuration(video.duration)}
+            </span>
+          )}
+        </Link>
+        <div className="flex-1 min-w-0 py-0.5">
+          <Link to={`/watch/${video.id}`}>
+            <h3 className="font-medium text-sm line-clamp-2 leading-snug group-hover:text-primary-400">
+              {video.title}
+            </h3>
+          </Link>
+          <Link 
+            to={`/channel/${video.channel_handle}`}
+            className="text-xs text-dark-400 hover:text-white mt-1 block truncate"
+          >
+            {video.channel_name}
+          </Link>
+          <p className="text-xs text-dark-400 mt-0.5">
+            {formatViews(video.view_count)} vues • {timeAgo}
+          </p>
+        </div>
       </div>
     )
   }

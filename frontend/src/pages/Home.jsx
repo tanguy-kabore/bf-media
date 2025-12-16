@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useIsMobile } from '../hooks/useMediaQuery'
 import api from '../services/api'
 import VideoCard from '../components/VideoCard'
 
@@ -13,6 +14,7 @@ const categories = [
 ]
 
 export default function Home() {
+  const isMobile = useIsMobile()
   const [videos, setVideos] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeCategory, setActiveCategory] = useState(null)
@@ -52,27 +54,52 @@ export default function Home() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 mt-4">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="aspect-video bg-dark-800 rounded-lg sm:rounded-xl" />
-              <div className="flex gap-2 sm:gap-3 mt-2 sm:mt-3">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 bg-dark-800 rounded-full flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="h-4 bg-dark-800 rounded w-3/4" />
-                  <div className="h-3 bg-dark-800 rounded w-1/2 mt-2" />
+        isMobile ? (
+          // Mobile loading skeleton - compact horizontal
+          <div className="space-y-3 mt-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex gap-3 animate-pulse">
+                <div className="w-36 aspect-video bg-dark-800 rounded-lg flex-shrink-0" />
+                <div className="flex-1 py-1">
+                  <div className="h-4 bg-dark-800 rounded w-full" />
+                  <div className="h-3 bg-dark-800 rounded w-2/3 mt-2" />
+                  <div className="h-3 bg-dark-800 rounded w-1/2 mt-1" />
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          // Desktop loading skeleton - grid
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-4">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="aspect-video bg-dark-800 rounded-xl" />
+                <div className="flex gap-3 mt-3">
+                  <div className="w-9 h-9 bg-dark-800 rounded-full flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="h-4 bg-dark-800 rounded w-3/4" />
+                    <div className="h-3 bg-dark-800 rounded w-1/2 mt-2" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       ) : videos.length === 0 ? (
         <div className="text-center py-12 sm:py-20">
           <p className="text-dark-400 text-base sm:text-lg">Aucune vidéo disponible</p>
           <p className="text-dark-500 mt-2 text-sm sm:text-base">Soyez le premier à uploader une vidéo !</p>
         </div>
+      ) : isMobile ? (
+        // Mobile: compact horizontal list
+        <div className="space-y-3 mt-4">
+          {videos.map((video) => (
+            <VideoCard key={video.id} video={video} compact />
+          ))}
+        </div>
       ) : (
-        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 mt-4">
+        // Desktop: grid layout
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-4">
           {videos.map((video) => (
             <VideoCard key={video.id} video={video} />
           ))}

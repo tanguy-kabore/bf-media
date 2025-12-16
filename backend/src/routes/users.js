@@ -142,6 +142,78 @@ router.post('/report', authenticate, asyncHandler(async (req, res) => {
   res.status(201).json({ message: 'Signalement envoyé' });
 }));
 
+// Get user preferences
+router.get('/preferences', authenticate, asyncHandler(async (req, res) => {
+  let [prefs] = await query('SELECT * FROM user_preferences WHERE user_id = ?', [req.user.id]);
+  
+  // Create default preferences if none exist
+  if (!prefs) {
+    await query(`
+      INSERT INTO user_preferences (user_id) VALUES (?)
+    `, [req.user.id]);
+    [prefs] = await query('SELECT * FROM user_preferences WHERE user_id = ?', [req.user.id]);
+  }
+
+  res.json({
+    notifications: {
+      newVideos: !!prefs.notify_new_videos,
+      comments: !!prefs.notify_comments,
+      subscribers: !!prefs.notify_subscribers
+    },
+    privacy: {
+      privateSubscriptions: !!prefs.privacy_subscriptions,
+      privatePlaylists: !!prefs.privacy_playlists
+    }
+  });
+}));
+
+// Update user preferences
+router.put('/preferences', authenticate, asyncHandler(async (req, res) => {
+  const { notifications, privacy } = req.body;
+
+  // Ensure preferences row exists
+  await query(`
+    INSERT INTO user_preferences (user_id) VALUES (?)
+    ON DUPLICATE KEY UPDATE updated_at = NOW()
+  `, [req.user.id]);
+
+  const updates = [];
+  const params = [];
+
+  if (notifications) {
+    if (notifications.newVideos !== undefined) {
+      updates.push('notify_new_videos = ?');
+      params.push(notifications.newVideos);
+    }
+    if (notifications.comments !== undefined) {
+      updates.push('notify_comments = ?');
+      params.push(notifications.comments);
+    }
+    if (notifications.subscribers !== undefined) {
+      updates.push('notify_subscribers = ?');
+      params.push(notifications.subscribers);
+    }
+  }
+
+  if (privacy) {
+    if (privacy.privateSubscriptions !== undefined) {
+      updates.push('privacy_subscriptions = ?');
+      params.push(privacy.privateSubscriptions);
+    }
+    if (privacy.privatePlaylists !== undefined) {
+      updates.push('privacy_playlists = ?');
+      params.push(privacy.privatePlaylists);
+    }
+  }
+
+  if (updates.length > 0) {
+    params.push(req.user.id);
+    await query(`UPDATE user_preferences SET ${updates.join(', ')} WHERE user_id = ?`, params);
+  }
+
+  res.json({ message: 'Préférences mises à jour' });
+}));
+
 // Get user profile - MUST BE LAST (catches all /:username patterns)
 router.get('/:username', optionalAuth, asyncHandler(async (req, res) => {
   const { username } = req.params;

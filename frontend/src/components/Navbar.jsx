@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FiMenu, FiSearch, FiBell, FiVideo, FiUser, FiLogOut, FiSettings, FiChevronDown, FiPlus, FiLayers } from 'react-icons/fi'
+import { FiMenu, FiSearch, FiBell, FiVideo, FiUser, FiLogOut, FiSettings, FiChevronDown, FiPlus, FiLayers, FiArrowLeft, FiX } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
 
 export default function Navbar({ onMenuClick }) {
@@ -10,8 +10,10 @@ export default function Navbar({ onMenuClick }) {
   const [showDropdown, setShowDropdown] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showChannelSwitcher, setShowChannelSwitcher] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const dropdownRef = useRef(null)
   const channelSwitcherRef = useRef(null)
+  const searchInputRef = useRef(null)
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -32,10 +34,18 @@ export default function Navbar({ onMenuClick }) {
     }
   }, [isAuthenticated])
 
+  // Focus search input when opened on mobile
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [isSearchOpen])
+
   const handleSearch = (e) => {
     e.preventDefault()
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`)
+      setIsSearchOpen(false)
     }
   }
 
@@ -45,61 +55,131 @@ export default function Navbar({ onMenuClick }) {
     setShowDropdown(false)
   }
 
+  const closeSearch = () => {
+    setIsSearchOpen(false)
+    setSearchQuery('')
+  }
+
   return (
-    <nav className="fixed top-0 left-0 right-0 h-14 bg-dark-950 border-b border-dark-800 z-50 px-2 sm:px-4">
-      <div className="flex items-center justify-between h-full gap-2 sm:gap-4 max-w-full overflow-hidden">
-        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-          <button onClick={onMenuClick} className="p-2 hover:bg-dark-800 rounded-full flex-shrink-0">
-            <FiMenu className="w-5 h-5" />
-          </button>
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center font-bold text-sm">
-              BF
-            </div>
-            <span className="text-xl font-semibold hidden sm:block">Media</span>
-          </Link>
-        </div>
-
-        <form onSubmit={handleSearch} className="flex-1 min-w-0 max-w-xl mx-1 sm:mx-4">
-          <div className="flex">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher..."
-              className="w-full px-3 sm:px-4 py-2 bg-dark-900 border border-dark-700 rounded-l-full focus:outline-none focus:border-primary-500 text-sm sm:text-base min-w-0"
-            />
-            <button
-              type="submit"
-              className="px-3 sm:px-6 bg-dark-800 border border-l-0 border-dark-700 rounded-r-full hover:bg-dark-700 flex-shrink-0"
+    <>
+      {/* Mobile Full-Screen Search Overlay */}
+      {isSearchOpen && (
+        <div className="fixed inset-0 bg-dark-950 z-[60] lg:hidden">
+          <div className="flex items-center h-14 px-2 gap-2 border-b border-dark-800">
+            <button 
+              onClick={closeSearch}
+              className="p-2 hover:bg-dark-800 rounded-full flex-shrink-0"
             >
-              <FiSearch className="w-4 h-4 sm:w-5 sm:h-5" />
+              <FiArrowLeft className="w-5 h-5" />
             </button>
+            <form onSubmit={handleSearch} className="flex-1">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher sur Tipoko..."
+                className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-full focus:outline-none focus:border-primary-500 text-base"
+                autoFocus
+              />
+            </form>
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="p-2 hover:bg-dark-800 rounded-full flex-shrink-0"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            )}
           </div>
-        </form>
+          {/* Search suggestions could go here */}
+          <div className="p-4">
+            <p className="text-dark-400 text-sm">Recherchez des vidéos, chaînes...</p>
+          </div>
+        </div>
+      )}
 
-        <div className="flex items-center gap-2">
-          {isAuthenticated ? (
+      {/* Main Navbar */}
+      <nav className="fixed top-0 left-0 right-0 h-14 bg-dark-950/95 backdrop-blur-sm border-b border-dark-800 z-50 px-2 sm:px-4">
+        <div className="flex items-center justify-between h-full gap-2 sm:gap-4 max-w-full overflow-hidden">
+          {/* Left: Menu + Logo */}
+          <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
+            <button onClick={onMenuClick} className="p-2 hover:bg-dark-800 rounded-full flex-shrink-0">
+              <FiMenu className="w-5 h-5" />
+            </button>
+            <Link to="/" className="flex items-center flex-shrink-0">
+              <span className="text-xl sm:text-2xl font-bold text-white">TIPOKO</span>
+            </Link>
+          </div>
+
+          {/* Center: Search Bar (Hidden on mobile, replaced by icon) */}
+          <div className="flex-1 max-w-xl mx-2 sm:mx-4 hidden sm:block">
+            <form onSubmit={handleSearch} className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher..."
+                className="w-full px-4 py-2 pl-10 bg-dark-900/80 border border-dark-700 rounded-full focus:outline-none focus:border-primary-500 focus:bg-dark-900 text-sm transition-colors"
+              />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400" />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-12 top-1/2 -translate-y-1/2 p-1 hover:bg-dark-700 rounded-full"
+                >
+                  <FiX className="w-4 h-4 text-dark-400" />
+                </button>
+              )}
+              <button
+                type="submit"
+                className="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-full transition-colors"
+              >
+                <FiSearch className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Mobile Search Button */}
+            <button 
+              onClick={() => setIsSearchOpen(true)}
+              className="p-2 hover:bg-dark-800 rounded-full sm:hidden"
+            >
+              <FiSearch className="w-5 h-5" />
+            </button>
+
+            {isAuthenticated ? (
             <>
-              <Link to="/upload" className="p-2 hover:bg-dark-800 rounded-full" title="Uploader">
+              <Link to="/upload" className="p-2 hover:bg-dark-800 rounded-full flex items-center justify-center" title="Uploader une vidéo">
                 <FiVideo className="w-5 h-5" />
               </Link>
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 hover:bg-dark-800 rounded-full relative"
+                className="p-2 hover:bg-dark-800 rounded-full relative hidden sm:flex"
               >
                 <FiBell className="w-5 h-5" />
               </button>
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setShowDropdown(!showDropdown)}
-                  className="w-8 h-8 rounded-full overflow-hidden bg-dark-700"
+                  className="flex-shrink-0"
+                  style={{ padding: 0, background: 'none', border: 'none' }}
                 >
-                  {user?.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover" />
-                  ) : (
-                    <FiUser className="w-full h-full p-1.5" />
-                  )}
+                  <div className="w-9 h-9 rounded-full overflow-hidden bg-dark-700 flex items-center justify-center">
+                    {user?.avatarUrl ? (
+                      <img 
+                        src={user.avatarUrl} 
+                        alt={user.displayName} 
+                        className="w-9 h-9 rounded-full object-cover"
+                        style={{ minWidth: '36px', minHeight: '36px' }}
+                      />
+                    ) : (
+                      <FiUser className="w-5 h-5" />
+                    )}
+                  </div>
                 </button>
                 {showDropdown && (
                   <div className="dropdown">
@@ -109,6 +189,7 @@ export default function Navbar({ onMenuClick }) {
                     </div>
                     
                     {/* Channel Switcher */}
+                    {channels.length > 0 && (
                     <div className="p-2 border-b border-dark-700">
                       <p className="text-xs text-dark-400 px-2 mb-1">Chaîne active</p>
                       <div className="relative" ref={channelSwitcherRef}>
@@ -118,16 +199,16 @@ export default function Navbar({ onMenuClick }) {
                         >
                           <div className="w-8 h-8 rounded-full bg-dark-600 overflow-hidden flex-shrink-0">
                             {(channel?.avatar_url || user?.avatarUrl) ? (
-                              <img src={channel?.avatar_url || user?.avatarUrl} alt={channel.name} className="w-full h-full object-cover" />
+                              <img src={channel?.avatar_url || user?.avatarUrl} alt={channel?.name || ''} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-sm font-medium">
-                                {channel?.name?.charAt(0)}
+                                {channel?.name?.charAt(0) || '?'}
                               </div>
                             )}
                           </div>
                           <div className="flex-1 text-left min-w-0">
-                            <p className="text-sm font-medium truncate">{channel?.name}</p>
-                            <p className="text-xs text-dark-400">@{channel?.handle}</p>
+                            <p className="text-sm font-medium truncate">{channel?.name || 'Sélectionner'}</p>
+                            <p className="text-xs text-dark-400">@{channel?.handle || '---'}</p>
                           </div>
                           <FiChevronDown className={`w-4 h-4 transition-transform ${showChannelSwitcher ? 'rotate-180' : ''}`} />
                         </button>
@@ -165,11 +246,14 @@ export default function Navbar({ onMenuClick }) {
                         )}
                       </div>
                     </div>
+                    )}
 
-                    <Link to={`/channel/${channel?.handle}`} className="dropdown-item" onClick={() => setShowDropdown(false)}>
-                      <FiUser className="w-5 h-5" />
-                      <span>Ma chaîne</span>
-                    </Link>
+                    {channel && (
+                      <Link to={`/channel/${channel.handle}`} className="dropdown-item" onClick={() => setShowDropdown(false)}>
+                        <FiUser className="w-5 h-5" />
+                        <span>Ma chaîne</span>
+                      </Link>
+                    )}
                     <Link to="/channels/manage" className="dropdown-item" onClick={() => setShowDropdown(false)}>
                       <FiLayers className="w-5 h-5" />
                       <span>Gérer mes chaînes</span>
@@ -199,5 +283,6 @@ export default function Navbar({ onMenuClick }) {
         </div>
       </div>
     </nav>
+    </>
   )
 }

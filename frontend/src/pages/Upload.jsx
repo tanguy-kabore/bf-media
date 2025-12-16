@@ -108,21 +108,22 @@ export default function Upload() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Uploader une vidéo</h1>
+    <div className="max-w-4xl mx-auto w-full overflow-x-hidden">
+      {/* Header - stacked on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Uploader une vidéo</h1>
         {channel && (
           <div className="flex items-center gap-2 text-sm text-dark-400">
-            <span>Sur la chaîne:</span>
+            <span className="hidden sm:inline">Sur la chaîne:</span>
             <div className="flex items-center gap-2 bg-dark-800 px-3 py-1.5 rounded-full">
-              <div className="w-5 h-5 rounded-full bg-dark-600 overflow-hidden">
+              <div className="w-5 h-5 rounded-full bg-dark-600 overflow-hidden flex-shrink-0">
                 {channel.avatar_url ? (
                   <img src={channel.avatar_url} alt={channel.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-xs">{channel.name?.charAt(0)}</div>
                 )}
               </div>
-              <span className="font-medium text-white">{channel.name}</span>
+              <span className="font-medium text-white text-sm">{channel.name}</span>
             </div>
           </div>
         )}
@@ -131,21 +132,22 @@ export default function Upload() {
       {!file ? (
         <div
           {...getRootProps()}
-          className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
+          className={`border-2 border-dashed rounded-lg sm:rounded-xl p-6 sm:p-12 text-center cursor-pointer transition-colors ${
             isDragActive ? 'border-primary-500 bg-primary-500/10' : 'border-dark-600 hover:border-dark-500'
           }`}
         >
           <input {...getInputProps()} />
-          <FiUploadCloud className="w-16 h-16 mx-auto text-dark-500" />
-          <p className="text-lg mt-4">
+          <FiUploadCloud className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-dark-500" />
+          <p className="text-base sm:text-lg mt-3 sm:mt-4 px-2">
             {isDragActive ? 'Déposez la vidéo ici' : 'Glissez-déposez une vidéo ou cliquez pour sélectionner'}
           </p>
-          <p className="text-dark-500 mt-2">MP4, WebM, MOV, AVI • Max 2 Go</p>
+          <p className="text-dark-500 mt-2 text-sm">MP4, WebM, MOV, AVI • Max 2 Go</p>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="relative aspect-video bg-dark-800 rounded-xl overflow-hidden">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Video preview */}
+            <div className="relative aspect-video bg-dark-800 rounded-lg sm:rounded-xl overflow-hidden">
               <video src={preview} className="w-full h-full object-contain" controls />
               <button
                 type="button"
@@ -156,68 +158,72 @@ export default function Upload() {
               </button>
             </div>
 
-            <div className="space-y-4">
+            {/* Form fields */}
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Titre *</label>
+                <label className="block text-sm font-medium mb-1.5 sm:mb-2">Titre *</label>
                 <input
                   type="text"
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
-                  className="input"
+                  className="input w-full"
                   required
                   maxLength={100}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Description</label>
+                <label className="block text-sm font-medium mb-1.5 sm:mb-2">Description</label>
                 <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
-                  className="input min-h-[120px] resize-none"
+                  className="input w-full min-h-[100px] sm:min-h-[120px] resize-none"
                   placeholder="Décrivez votre vidéo..."
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Visibilité</label>
-                <select
-                  name="visibility"
-                  value={formData.visibility}
-                  onChange={handleChange}
-                  className="input"
-                >
-                  <option value="public">Publique</option>
-                  <option value="unlisted">Non répertoriée</option>
-                  <option value="private">Privée</option>
-                </select>
+              {/* Visibility and Category - side by side on mobile */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 sm:mb-2">Visibilité</label>
+                  <select
+                    name="visibility"
+                    value={formData.visibility}
+                    onChange={handleChange}
+                    className="input w-full text-sm"
+                  >
+                    <option value="public">Publique</option>
+                    <option value="unlisted">Non répertoriée</option>
+                    <option value="private">Privée</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 sm:mb-2">Catégorie</label>
+                  <select
+                    name="categoryId"
+                    value={formData.categoryId}
+                    onChange={handleChange}
+                    className="input w-full text-sm"
+                  >
+                    <option value="">Sélectionner</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Catégorie</label>
-                <select
-                  name="categoryId"
-                  value={formData.categoryId}
-                  onChange={handleChange}
-                  className="input"
-                >
-                  <option value="">Sélectionner une catégorie</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Tags (séparés par des virgules)</label>
+                <label className="block text-sm font-medium mb-1.5 sm:mb-2">Tags (séparés par des virgules)</label>
                 <input
                   type="text"
                   name="tags"
                   value={formData.tags}
                   onChange={handleChange}
-                  className="input"
+                  className="input w-full"
                   placeholder="musique, vlog, tutoriel"
                 />
               </div>
@@ -239,11 +245,11 @@ export default function Upload() {
             </div>
           )}
 
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={removeFile} className="btn btn-secondary" disabled={uploading}>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
+            <button type="button" onClick={removeFile} className="btn btn-secondary w-full sm:w-auto" disabled={uploading}>
               Annuler
             </button>
-            <button type="submit" className="btn btn-primary" disabled={uploading}>
+            <button type="submit" className="btn btn-primary w-full sm:w-auto" disabled={uploading}>
               {uploading ? 'Upload en cours...' : 'Publier'}
             </button>
           </div>

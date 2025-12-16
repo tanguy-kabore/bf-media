@@ -100,8 +100,8 @@ export default function ManageChannels() {
                 </div>
               </div>
 
-              {/* Action buttons - full width on mobile */}
-              <div className="flex items-center gap-2 justify-end sm:justify-start border-t sm:border-t-0 border-dark-800 pt-3 sm:pt-0 mt-1 sm:mt-0">
+              {/* Action buttons - aligned horizontally */}
+              <div className="flex items-center gap-1 sm:gap-2 justify-end border-t sm:border-t-0 border-dark-800 pt-3 sm:pt-0 mt-1 sm:mt-0">
                 {ch.id !== activeChannel?.id && (
                   <button
                     onClick={() => switchChannel(ch.id)}
@@ -112,17 +112,17 @@ export default function ManageChannels() {
                 )}
                 <Link
                   to={`/channel/${ch.handle}`}
-                  className="p-2 hover:bg-dark-700 rounded-lg"
+                  className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-dark-700 rounded-lg"
                   title="Voir la chaîne"
                 >
-                  <FiExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <FiExternalLink className="w-5 h-5" />
                 </Link>
                 <button
                   onClick={() => handleDelete(ch.id, ch.name)}
-                  className="p-2 hover:bg-dark-700 rounded-lg text-red-400"
+                  className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-dark-700 rounded-lg text-red-400"
                   title="Supprimer"
                 >
-                  <FiTrash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <FiTrash2 className="w-5 h-5" />
                 </button>
               </div>
             </div>

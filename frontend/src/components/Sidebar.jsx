@@ -120,7 +120,7 @@ export default function Sidebar({ collapsed, isOpen, isMobile, onClose }) {
 
             <div className="my-3 border-t border-dark-800" />
             <div className="px-4 py-4 text-xs text-dark-500">
-              <p>© {new Date().getFullYear()} BF Media</p>
+              <p>© {new Date().getFullYear()} TIPOKO</p>
               <p className="mt-1">Tous droits réservés</p>
             </div>
           </>

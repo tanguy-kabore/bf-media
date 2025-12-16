@@ -13,13 +13,62 @@ export default function Settings() {
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const avatarInputRef = useRef(null)
+  
+  // Preferences state
+  const [notifications, setNotifications] = useState({
+    newVideos: true,
+    comments: true,
+    subscribers: true
+  })
+  const [privacy, setPrivacy] = useState({
+    privateSubscriptions: false,
+    privatePlaylists: false
+  })
+  const [savingPrefs, setSavingPrefs] = useState(false)
 
   useEffect(() => {
     if (user) {
       setProfileData({ displayName: user.displayName || '', bio: user.bio || '' })
       setAvatarPreview(user.avatarUrl)
+      fetchPreferences()
     }
   }, [user])
+
+  const fetchPreferences = async () => {
+    try {
+      const response = await api.get('/users/preferences')
+      setNotifications(response.data.notifications)
+      setPrivacy(response.data.privacy)
+    } catch (error) {
+      console.error('Error fetching preferences:', error)
+    }
+  }
+
+  const saveNotifications = async (newNotifications) => {
+    setNotifications(newNotifications)
+    setSavingPrefs(true)
+    try {
+      await api.put('/users/preferences', { notifications: newNotifications })
+      toast.success('Préférences enregistrées')
+    } catch (error) {
+      toast.error('Erreur lors de la sauvegarde')
+    } finally {
+      setSavingPrefs(false)
+    }
+  }
+
+  const savePrivacy = async (newPrivacy) => {
+    setPrivacy(newPrivacy)
+    setSavingPrefs(true)
+    try {
+      await api.put('/users/preferences', { privacy: newPrivacy })
+      toast.success('Préférences enregistrées')
+    } catch (error) {
+      toast.error('Erreur lors de la sauvegarde')
+    } finally {
+      setSavingPrefs(false)
+    }
+  }
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0]
@@ -219,18 +268,37 @@ export default function Settings() {
               <h2 className="text-lg font-semibold mb-4">Préférences de notification</h2>
               <div className="space-y-4">
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" defaultChecked className="w-5 h-5 rounded" />
+                  <input 
+                    type="checkbox" 
+                    checked={notifications.newVideos}
+                    onChange={(e) => saveNotifications({ ...notifications, newVideos: e.target.checked })}
+                    disabled={savingPrefs}
+                    className="w-5 h-5 rounded accent-primary-500" 
+                  />
                   <span>Nouvelles vidéos des abonnements</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" defaultChecked className="w-5 h-5 rounded" />
+                  <input 
+                    type="checkbox" 
+                    checked={notifications.comments}
+                    onChange={(e) => saveNotifications({ ...notifications, comments: e.target.checked })}
+                    disabled={savingPrefs}
+                    className="w-5 h-5 rounded accent-primary-500" 
+                  />
                   <span>Réponses à mes commentaires</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" defaultChecked className="w-5 h-5 rounded" />
+                  <input 
+                    type="checkbox" 
+                    checked={notifications.subscribers}
+                    onChange={(e) => saveNotifications({ ...notifications, subscribers: e.target.checked })}
+                    disabled={savingPrefs}
+                    className="w-5 h-5 rounded accent-primary-500" 
+                  />
                   <span>Nouveaux abonnés</span>
                 </label>
               </div>
+              {savingPrefs && <p className="text-sm text-dark-400 mt-4">Enregistrement...</p>}
             </div>
           )}
 
@@ -239,14 +307,27 @@ export default function Settings() {
               <h2 className="text-lg font-semibold mb-4">Paramètres de confidentialité</h2>
               <div className="space-y-4">
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" className="w-5 h-5 rounded" />
+                  <input 
+                    type="checkbox" 
+                    checked={privacy.privateSubscriptions}
+                    onChange={(e) => savePrivacy({ ...privacy, privateSubscriptions: e.target.checked })}
+                    disabled={savingPrefs}
+                    className="w-5 h-5 rounded accent-primary-500" 
+                  />
                   <span>Garder mes abonnements privés</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" className="w-5 h-5 rounded" />
+                  <input 
+                    type="checkbox" 
+                    checked={privacy.privatePlaylists}
+                    onChange={(e) => savePrivacy({ ...privacy, privatePlaylists: e.target.checked })}
+                    disabled={savingPrefs}
+                    className="w-5 h-5 rounded accent-primary-500" 
+                  />
                   <span>Garder mes playlists privées par défaut</span>
                 </label>
               </div>
+              {savingPrefs && <p className="text-sm text-dark-400 mt-4">Enregistrement...</p>}
             </div>
           )}
         </div>

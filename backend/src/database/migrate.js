@@ -390,6 +390,19 @@ CREATE TABLE IF NOT EXISTS sessions (
   INDEX idx_expires_at (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- User preferences table
+CREATE TABLE IF NOT EXISTS user_preferences (
+  user_id VARCHAR(36) PRIMARY KEY,
+  notify_new_videos BOOLEAN DEFAULT TRUE,
+  notify_comments BOOLEAN DEFAULT TRUE,
+  notify_subscribers BOOLEAN DEFAULT TRUE,
+  privacy_subscriptions BOOLEAN DEFAULT FALSE,
+  privacy_playlists BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insert default categories
 INSERT IGNORE INTO categories (name, slug, description, icon) VALUES
 ('Musique', 'music', 'Clips musicaux, concerts et contenus audio', 'music'),
