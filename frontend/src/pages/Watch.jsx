@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { FiThumbsUp, FiThumbsDown, FiShare2, FiBookmark, FiFlag, FiMoreHorizontal } from 'react-icons/fi'
+import { FiThumbsUp, FiThumbsDown, FiShare2, FiBookmark, FiFlag, FiMoreHorizontal, FiList, FiPlus, FiCheck, FiX } from 'react-icons/fi'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import api from '../services/api'
@@ -30,6 +30,10 @@ export default function Watch() {
   const [replyContent, setReplyContent] = useState('')
   const [expandedReplies, setExpandedReplies] = useState({})
   const [replies, setReplies] = useState({})
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false)
+  const [userPlaylists, setUserPlaylists] = useState([])
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false)
+  const [videoInPlaylists, setVideoInPlaylists] = useState([])
 
   useEffect(() => {
     if (id) {
@@ -245,6 +249,51 @@ export default function Watch() {
     }
   }
 
+  const handleOpenPlaylistModal = async () => {
+    if (!isAuthenticated) {
+      toast.error('Connectez-vous pour ajouter à une playlist')
+      return
+    }
+    setShowPlaylistModal(true)
+    setLoadingPlaylists(true)
+    try {
+      const response = await api.get('/playlists')
+      setUserPlaylists(response.data || [])
+      // Check which playlists already contain this video
+      const inPlaylists = []
+      for (const playlist of response.data || []) {
+        try {
+          const playlistData = await api.get(`/playlists/${playlist.id}`)
+          if (playlistData.data.videos?.some(v => v.id === id)) {
+            inPlaylists.push(playlist.id)
+          }
+        } catch (e) {}
+      }
+      setVideoInPlaylists(inPlaylists)
+    } catch (error) {
+      toast.error('Erreur lors du chargement des playlists')
+    } finally {
+      setLoadingPlaylists(false)
+    }
+  }
+
+  const handleTogglePlaylist = async (playlistId) => {
+    const isInPlaylist = videoInPlaylists.includes(playlistId)
+    try {
+      if (isInPlaylist) {
+        await api.delete(`/playlists/${playlistId}/videos/${id}`)
+        setVideoInPlaylists(prev => prev.filter(p => p !== playlistId))
+        toast.success('Vidéo retirée de la playlist')
+      } else {
+        await api.post(`/playlists/${playlistId}/videos`, { videoId: id })
+        setVideoInPlaylists(prev => [...prev, playlistId])
+        toast.success('Vidéo ajoutée à la playlist')
+      }
+    } catch (error) {
+      toast.error('Erreur')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex gap-6">
@@ -317,28 +366,34 @@ export default function Watch() {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-dark-800 rounded-full">
+          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
+            <div className="flex items-center bg-dark-800 rounded-full flex-shrink-0">
               <button
                 onClick={() => handleReaction('like')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-l-full hover:bg-dark-700 ${userReaction === 'like' ? 'text-primary-400' : ''}`}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-l-full hover:bg-dark-700 ${userReaction === 'like' ? 'text-primary-400' : ''}`}
               >
                 <FiThumbsUp className={userReaction === 'like' ? 'fill-current' : ''} />
-                <span>{formatViews(video.like_count)}</span>
+                <span className="text-sm">{formatViews(video.like_count)}</span>
               </button>
               <div className="w-px h-6 bg-dark-600" />
               <button
                 onClick={() => handleReaction('dislike')}
-                className={`px-4 py-2 rounded-r-full hover:bg-dark-700 ${userReaction === 'dislike' ? 'text-primary-400' : ''}`}
+                className={`px-3 sm:px-4 py-2 rounded-r-full hover:bg-dark-700 ${userReaction === 'dislike' ? 'text-primary-400' : ''}`}
               >
                 <FiThumbsDown className={userReaction === 'dislike' ? 'fill-current' : ''} />
               </button>
             </div>
-            <button onClick={handleShare} className="btn btn-secondary">
-              <FiShare2 /> Partager
+            <button onClick={handleShare} className="btn btn-secondary flex-shrink-0 text-sm">
+              <FiShare2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Partager</span>
             </button>
-            <button onClick={handleSave} className="btn btn-secondary">
-              <FiBookmark /> Enregistrer
+            <button onClick={handleSave} className="btn btn-secondary flex-shrink-0 text-sm">
+              <FiBookmark className="w-4 h-4" />
+              <span className="hidden sm:inline">Enregistrer</span>
+            </button>
+            <button onClick={handleOpenPlaylistModal} className="btn btn-secondary flex-shrink-0 text-sm">
+              <FiList className="w-4 h-4" />
+              <span className="hidden sm:inline">Playlist</span>
             </button>
           </div>
         </div>
@@ -488,6 +543,59 @@ export default function Watch() {
           ))}
         </div>
       </div>
+
+      {/* Playlist Modal */}
+      {showPlaylistModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-900 rounded-xl w-full max-w-sm border border-dark-700">
+            <div className="flex items-center justify-between p-4 border-b border-dark-700">
+              <h3 className="font-semibold">Ajouter à une playlist</h3>
+              <button
+                onClick={() => setShowPlaylistModal(false)}
+                className="p-1 hover:bg-dark-700 rounded"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 max-h-80 overflow-y-auto">
+              {loadingPlaylists ? (
+                <div className="space-y-2">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="h-12 bg-dark-800 rounded animate-pulse" />
+                  ))}
+                </div>
+              ) : userPlaylists.length === 0 ? (
+                <div className="text-center py-6">
+                  <FiList className="w-10 h-10 mx-auto text-dark-600 mb-2" />
+                  <p className="text-dark-400 text-sm">Aucune playlist</p>
+                  <p className="text-dark-500 text-xs mt-1">Créez une playlist depuis votre chaîne</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {userPlaylists.map(playlist => {
+                    const isInPlaylist = videoInPlaylists.includes(playlist.id)
+                    return (
+                      <button
+                        key={playlist.id}
+                        onClick={() => handleTogglePlaylist(playlist.id)}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-dark-800 transition-colors text-left"
+                      >
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${isInPlaylist ? 'bg-primary-500 border-primary-500' : 'border-dark-500'}`}>
+                          {isInPlaylist && <FiCheck className="w-3 h-3" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{playlist.title}</p>
+                          <p className="text-xs text-dark-400">{playlist.video_count || 0} vidéos</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

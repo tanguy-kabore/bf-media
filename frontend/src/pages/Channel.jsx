@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { FiBell, FiCheck } from 'react-icons/fi'
+import { FiBell, FiCheck, FiList, FiPlay, FiPlus, FiX } from 'react-icons/fi'
 import api from '../services/api'
 import useAuthStore from '../store/authStore'
 import VideoCard from '../components/VideoCard'
+import { useIsMobile } from '../hooks/useMediaQuery'
 import toast from 'react-hot-toast'
 
 const formatCount = (count) => {
@@ -20,11 +21,17 @@ export default function Channel() {
   const [loading, setLoading] = useState(true)
   const [isSubscribed, setIsSubscribed] = useState(false)
   const [activeTab, setActiveTab] = useState('videos')
+  const [playlists, setPlaylists] = useState([])
+  const [showCreatePlaylist, setShowCreatePlaylist] = useState(false)
+  const [newPlaylist, setNewPlaylist] = useState({ title: '', description: '' })
+  const [creating, setCreating] = useState(false)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     if (handle) {
       fetchChannel()
       fetchVideos()
+      fetchPlaylists()
     }
   }, [handle])
 
@@ -47,6 +54,38 @@ export default function Channel() {
       setVideos(response.data.videos)
     } catch (error) {
       console.error('Error fetching videos:', error)
+    }
+  }
+
+  const fetchPlaylists = async () => {
+    try {
+      const response = await api.get(`/channels/${handle}/playlists`)
+      setPlaylists(response.data || [])
+    } catch (error) {
+      console.error('Error fetching playlists:', error)
+    }
+  }
+
+  const handleCreatePlaylist = async (e) => {
+    e.preventDefault()
+    if (!newPlaylist.title.trim()) {
+      toast.error('Le titre est requis')
+      return
+    }
+    setCreating(true)
+    try {
+      const response = await api.post('/playlists', {
+        title: newPlaylist.title,
+        description: newPlaylist.description
+      })
+      setPlaylists(prev => [response.data, ...prev])
+      setShowCreatePlaylist(false)
+      setNewPlaylist({ title: '', description: '' })
+      toast.success('Playlist créée !')
+    } catch (error) {
+      toast.error('Erreur lors de la création')
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -177,12 +216,81 @@ export default function Channel() {
           videos.length === 0 ? (
             <p className="text-center py-8 sm:py-10 text-dark-400 text-sm sm:text-base">Aucune vidéo</p>
           ) : (
-            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className={`${
+              isMobile 
+                ? 'space-y-3' 
+                : 'grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+            }`}>
               {videos.map((video) => (
-                <VideoCard key={video.id} video={{ ...video, channel_name: channel.name, channel_handle: channel.handle }} />
+                <VideoCard 
+                  key={video.id} 
+                  video={{ ...video, channel_name: channel.name, channel_handle: channel.handle }} 
+                  compact 
+                />
               ))}
             </div>
           )
+        )}
+
+        {activeTab === 'playlists' && (
+          <>
+            {isOwner && (
+              <button
+                onClick={() => setShowCreatePlaylist(true)}
+                className="btn btn-primary mb-4 flex items-center gap-2"
+              >
+                <FiPlus className="w-4 h-4" />
+                Créer une playlist
+              </button>
+            )}
+            {playlists.length === 0 ? (
+              <div className="text-center py-8 sm:py-10">
+                <FiList className="w-12 h-12 mx-auto text-dark-600 mb-3" />
+                <p className="text-dark-400 text-sm sm:text-base">Aucune playlist</p>
+                {isOwner && (
+                  <p className="text-dark-500 text-xs mt-1">Créez votre première playlist !</p>
+                )}
+              </div>
+            ) : (
+            <div className={`${
+              isMobile 
+                ? 'space-y-3' 
+                : 'grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+            }`}>
+              {playlists.map((playlist) => (
+                <Link 
+                  key={playlist.id} 
+                  to={`/playlist/${playlist.id}`}
+                  className="group block"
+                >
+                  <div className={`${isMobile ? 'flex gap-3' : ''}`}>
+                    <div className={`relative ${isMobile ? 'w-36 flex-shrink-0' : ''} aspect-video bg-dark-800 rounded-lg overflow-hidden`}>
+                      {playlist.thumbnail_url ? (
+                        <img src={playlist.thumbnail_url} alt={playlist.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <FiList className="w-8 h-8 text-dark-600" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FiPlay className="w-8 h-8" />
+                      </div>
+                      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/80 text-xs rounded">
+                        {playlist.video_count} vidéos
+                      </div>
+                    </div>
+                    <div className={`${isMobile ? 'flex-1 min-w-0 py-0.5' : 'mt-2'}`}>
+                      <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary-400">{playlist.title}</h3>
+                      {playlist.description && (
+                        <p className="text-xs text-dark-400 mt-1 line-clamp-1">{playlist.description}</p>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            )}
+          </>
         )}
 
         {activeTab === 'about' && (
@@ -197,6 +305,61 @@ export default function Channel() {
           </div>
         )}
       </div>
+
+      {/* Create Playlist Modal */}
+      {showCreatePlaylist && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-900 rounded-xl w-full max-w-md border border-dark-700">
+            <div className="flex items-center justify-between p-4 border-b border-dark-700">
+              <h3 className="font-semibold">Créer une playlist</h3>
+              <button
+                onClick={() => setShowCreatePlaylist(false)}
+                className="p-1 hover:bg-dark-700 rounded"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreatePlaylist} className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Titre *</label>
+                <input
+                  type="text"
+                  value={newPlaylist.title}
+                  onChange={(e) => setNewPlaylist(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Ma playlist"
+                  className="input w-full"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Description</label>
+                <textarea
+                  value={newPlaylist.description}
+                  onChange={(e) => setNewPlaylist(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Description de la playlist..."
+                  className="input w-full h-24 resize-none"
+                />
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowCreatePlaylist(false)}
+                  className="btn btn-secondary"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="btn btn-primary"
+                >
+                  {creating ? 'Création...' : 'Créer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

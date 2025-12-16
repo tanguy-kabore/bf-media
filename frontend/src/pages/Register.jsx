@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from 'react-icons/fi'
+import { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiPlay, FiCheck } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
 import toast from 'react-hot-toast'
 
@@ -44,20 +44,31 @@ export default function Register() {
     }
   }
 
+  const passwordStrength = formData.password.length >= 8
+
   return (
-    <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2">
-            <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center font-bold text-xl">
-              BF
+    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 flex items-center justify-center p-4">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -left-40 w-80 h-80 bg-primary-600/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -right-40 w-80 h-80 bg-primary-500/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
+        <div className="text-center mb-6">
+          <Link to="/" className="inline-flex items-center justify-center">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/25">
+                <FiPlay className="w-5 h-5 text-white fill-white" />
+              </div>
+              <span className="text-2xl font-bold bg-gradient-to-r from-white to-dark-300 bg-clip-text text-transparent">TIPOKO</span>
             </div>
           </Link>
-          <h1 className="text-2xl font-bold mt-4">Créer un compte</h1>
-          <p className="text-dark-400 mt-2">Rejoignez BF Media dès maintenant</p>
+          <h1 className="text-2xl sm:text-3xl font-bold mt-6">Créer un compte</h1>
+          <p className="text-dark-400 mt-2">Rejoignez la communauté TIPOKO</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="card p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-dark-900/50 backdrop-blur-sm border border-dark-800 rounded-2xl p-6 sm:p-8 space-y-4">
           <div>
             <label className="block text-sm font-medium mb-2">Email</label>
             <div className="relative">
@@ -146,14 +157,51 @@ export default function Register() {
             </div>
           </div>
 
-          <button type="submit" disabled={isLoading} className="btn btn-primary w-full py-3">
-            {isLoading ? 'Création...' : 'Créer mon compte'}
+          {/* Password strength indicator */}
+          {formData.password && (
+            <div className="flex items-center gap-2 text-sm">
+              <div className={`w-4 h-4 rounded-full flex items-center justify-center ${passwordStrength ? 'bg-green-500' : 'bg-dark-600'}`}>
+                {passwordStrength && <FiCheck className="w-3 h-3" />}
+              </div>
+              <span className={passwordStrength ? 'text-green-400' : 'text-dark-400'}>
+                {passwordStrength ? 'Mot de passe valide' : 'Minimum 8 caractères'}
+              </span>
+            </div>
+          )}
+
+          <button 
+            type="submit" 
+            disabled={isLoading} 
+            className="w-full py-3 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-primary-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Création...
+              </span>
+            ) : 'Créer mon compte'}
           </button>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-dark-700" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-dark-900/50 text-dark-400">ou</span>
+            </div>
+          </div>
+
+          <p className="text-center text-dark-400">
+            Déjà un compte ?{' '}
+            <Link to="/login" className="text-primary-400 hover:text-primary-300 font-medium transition-colors">Se connecter</Link>
+          </p>
         </form>
 
-        <p className="text-center mt-6 text-dark-400">
-          Déjà un compte ?{' '}
-          <Link to="/login" className="text-primary-400 hover:underline">Se connecter</Link>
+        <p className="text-center mt-6 text-dark-500 text-sm">
+          En créant un compte, vous acceptez nos conditions d'utilisation
         </p>
       </div>
     </div>

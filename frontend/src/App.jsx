@@ -16,6 +16,7 @@ import Settings from './pages/Settings'
 import ManageChannels from './pages/ManageChannels'
 import Category from './pages/Category'
 import Explore from './pages/Explore'
+import Playlist from './pages/Playlist'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import NotFound from './pages/NotFound'
@@ -48,6 +49,7 @@ function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/channels/manage" element={<ManageChannels />} />
         <Route path="/category/:slug" element={<Category />} />
+        <Route path="/playlist/:id" element={<Playlist />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
