@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast'
 import useAuthStore from '../store/authStore'
 
 export default function ManageChannels() {
-  const { channels, channel: activeChannel, fetchChannels, createChannel, deleteChannel, switchChannel } = useAuthStore()
+  const { user, channels, channel: activeChannel, fetchChannels, createChannel, deleteChannel, switchChannel } = useAuthStore()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({ name: '', handle: '', description: '' })
