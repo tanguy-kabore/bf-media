@@ -121,7 +121,7 @@ echo -e "${GREEN}✓ Environnement configuré${NC}"
 # ============================================
 # 4. Installation des dépendances Node.js
 # ============================================
-echo -e "${YELLOW}[4/8] Installation des dépendances Node.js...${NC}"
+echo -e "${YELLOW}[4/7] Installation des dépendances Node.js...${NC}"
 
 cd "$APP_DIR"
 npm install
@@ -129,19 +129,9 @@ npm install
 echo -e "${GREEN}✓ Dépendances installées${NC}"
 
 # ============================================
-# 5. Initialisation de la base de données
+# 5. Build du frontend
 # ============================================
-echo -e "${YELLOW}[5/8] Initialisation de la base de données...${NC}"
-
-cd "$APP_DIR/backend"
-npm run db:migrate
-
-echo -e "${GREEN}✓ Base de données initialisée${NC}"
-
-# ============================================
-# 6. Build du frontend
-# ============================================
-echo -e "${YELLOW}[6/8] Build du frontend...${NC}"
+echo -e "${YELLOW}[5/7] Build du frontend...${NC}"
 
 cd "$APP_DIR/frontend"
 npm run build
@@ -149,9 +139,9 @@ npm run build
 echo -e "${GREEN}✓ Frontend compilé${NC}"
 
 # ============================================
-# 7. Configuration Nginx
+# 6. Configuration Nginx
 # ============================================
-echo -e "${YELLOW}[7/8] Configuration de Nginx...${NC}"
+echo -e "${YELLOW}[6/7] Configuration de Nginx...${NC}"
 
 cat > /etc/nginx/sites-available/bf-media << 'EOF'
 server {
@@ -205,9 +195,9 @@ nginx -t && systemctl reload nginx
 echo -e "${GREEN}✓ Nginx configuré${NC}"
 
 # ============================================
-# 8. Démarrer l'application avec PM2
+# 7. Démarrer l'application avec PM2
 # ============================================
-echo -e "${YELLOW}[8/8] Démarrage de l'application...${NC}"
+echo -e "${YELLOW}[7/7] Démarrage de l'application...${NC}"
 
 cd "$APP_DIR/backend"
 
