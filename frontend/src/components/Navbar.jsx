@@ -46,34 +46,34 @@ export default function Navbar({ onMenuClick }) {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-14 bg-dark-950 border-b border-dark-800 z-50 px-4">
-      <div className="flex items-center justify-between h-full">
-        <div className="flex items-center gap-4">
-          <button onClick={onMenuClick} className="p-2 hover:bg-dark-800 rounded-full">
+    <nav className="fixed top-0 left-0 right-0 h-14 bg-dark-950 border-b border-dark-800 z-50 px-2 sm:px-4">
+      <div className="flex items-center justify-between h-full gap-2 sm:gap-4 max-w-full overflow-hidden">
+        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+          <button onClick={onMenuClick} className="p-2 hover:bg-dark-800 rounded-full flex-shrink-0">
             <FiMenu className="w-5 h-5" />
           </button>
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center font-bold">
+          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
+            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center font-bold text-sm">
               BF
             </div>
             <span className="text-xl font-semibold hidden sm:block">Media</span>
           </Link>
         </div>
 
-        <form onSubmit={handleSearch} className="flex-1 max-w-xl mx-4">
+        <form onSubmit={handleSearch} className="flex-1 min-w-0 max-w-xl mx-1 sm:mx-4">
           <div className="flex">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Rechercher..."
-              className="w-full px-4 py-2 bg-dark-900 border border-dark-700 rounded-l-full focus:outline-none focus:border-primary-500"
+              className="w-full px-3 sm:px-4 py-2 bg-dark-900 border border-dark-700 rounded-l-full focus:outline-none focus:border-primary-500 text-sm sm:text-base min-w-0"
             />
             <button
               type="submit"
-              className="px-6 bg-dark-800 border border-l-0 border-dark-700 rounded-r-full hover:bg-dark-700"
+              className="px-3 sm:px-6 bg-dark-800 border border-l-0 border-dark-700 rounded-r-full hover:bg-dark-700 flex-shrink-0"
             >
-              <FiSearch className="w-5 h-5" />
+              <FiSearch className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </form>

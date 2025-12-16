@@ -84,10 +84,12 @@ router.get('/', authenticate, asyncHandler(async (req, res) => {
   const offset = (page - 1) * limit;
 
   const subscriptions = await query(`
-    SELECT c.id, c.name, c.handle, c.avatar_url, c.subscriber_count, c.is_verified,
+    SELECT c.id, c.name, c.handle, COALESCE(c.avatar_url, u.avatar_url) as avatar_url, 
+           c.subscriber_count, c.is_verified,
            s.notifications_enabled, s.created_at as subscribed_at
     FROM subscriptions s
     JOIN channels c ON s.channel_id = c.id
+    JOIN users u ON c.user_id = u.id
     WHERE s.subscriber_id = ?
     ORDER BY c.name ASC
     LIMIT ? OFFSET ?

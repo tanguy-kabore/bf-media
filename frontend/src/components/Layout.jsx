@@ -29,7 +29,7 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-950">
+    <div className="min-h-screen min-h-dvh bg-dark-950 overflow-x-hidden w-full max-w-full">
       <Navbar onMenuClick={handleMenuClick} />
       <div className="flex pt-14">
         {/* Mobile overlay */}
@@ -45,10 +45,10 @@ export default function Layout() {
           isMobile={isMobile}
           onClose={() => setSidebarOpen(false)} 
         />
-        <main className={`flex-1 transition-all duration-300 ${
+        <main className={`flex-1 min-w-0 transition-all duration-300 ${
           isMobile ? 'ml-0' : (sidebarCollapsed ? 'ml-20' : 'ml-60')
         }`}>
-          <div className="p-4 md:p-6">
+          <div className="p-3 sm:p-4 md:p-6 w-full max-w-full overflow-x-hidden">
             <Outlet />
           </div>
         </main>
