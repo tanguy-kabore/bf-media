@@ -31,6 +31,9 @@ const { authenticateSocket } = require('./middleware/auth');
 const app = express();
 const httpServer = createServer(app);
 
+// Trust proxy (required when behind Nginx/reverse proxy)
+app.set('trust proxy', 1);
+
 // Socket.io setup for real-time features
 const io = new Server(httpServer, {
   cors: {
