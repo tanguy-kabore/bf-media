@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { FiThumbsUp, FiThumbsDown, FiShare2, FiBookmark, FiFlag, FiMoreHorizontal, FiList, FiPlus, FiCheck, FiX } from 'react-icons/fi'
+import { FiThumbsUp, FiThumbsDown, FiShare2, FiBookmark, FiFlag, FiMoreHorizontal, FiList, FiPlus, FiCheck, FiX, FiBell, FiUserPlus } from 'react-icons/fi'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import api from '../services/api'
@@ -359,9 +359,23 @@ export default function Watch() {
             {user?.id !== video.user_id && (
               <button
                 onClick={handleSubscribe}
-                className={`btn ${isSubscribed ? 'btn-secondary' : 'btn-primary'}`}
+                className={`group flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm transition-all duration-200 ${
+                  isSubscribed 
+                    ? 'bg-dark-700 text-white hover:bg-dark-600' 
+                    : 'bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600 hover:shadow-lg hover:shadow-red-500/25'
+                }`}
               >
-                {isSubscribed ? 'Abonné' : "S'abonner"}
+                {isSubscribed ? (
+                  <>
+                    <FiBell className="w-4 h-4" />
+                    <span>Abonné</span>
+                  </>
+                ) : (
+                  <>
+                    <FiUserPlus className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <span>S'abonner</span>
+                  </>
+                )}
               </button>
             )}
           </div>

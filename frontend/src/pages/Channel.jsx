@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { FiBell, FiCheck, FiList, FiPlay, FiPlus, FiX } from 'react-icons/fi'
+import { FiBell, FiCheck, FiList, FiPlay, FiPlus, FiX, FiUserPlus } from 'react-icons/fi'
 import api from '../services/api'
 import useAuthStore from '../store/authStore'
 import VideoCard from '../components/VideoCard'
@@ -173,7 +173,11 @@ export default function Channel() {
           ) : (
             <button
               onClick={handleSubscribe}
-              className={`btn text-sm sm:text-base ${isSubscribed ? 'btn-secondary' : 'btn-primary'}`}
+              className={`group flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-200 ${
+                isSubscribed 
+                  ? 'bg-dark-700 text-white hover:bg-dark-600' 
+                  : 'bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600 hover:shadow-lg hover:shadow-red-500/25'
+              }`}
             >
               {isSubscribed ? (
                 <>
@@ -181,7 +185,10 @@ export default function Channel() {
                   <span>Abonné</span>
                 </>
               ) : (
-                "S'abonner"
+                <>
+                  <FiUserPlus className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  <span>S'abonner</span>
+                </>
               )}
             </button>
           )}
