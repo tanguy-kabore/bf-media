@@ -250,9 +250,12 @@ CREATE TABLE IF NOT EXISTS video_views (
   session_id VARCHAR(100),
   ip_address VARCHAR(45),
   user_agent TEXT,
-  country VARCHAR(2),
+  country VARCHAR(100),
   city VARCHAR(100),
   device_type ENUM('desktop', 'mobile', 'tablet', 'tv', 'other') DEFAULT 'other',
+  browser VARCHAR(50),
+  os VARCHAR(50),
+  is_returning BOOLEAN DEFAULT FALSE,
   referrer VARCHAR(500),
   watch_duration INT DEFAULT 0,
   quality_watched VARCHAR(20),
@@ -261,8 +264,16 @@ CREATE TABLE IF NOT EXISTS video_views (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
   INDEX idx_video_id (video_id),
   INDEX idx_viewed_at (viewed_at),
-  INDEX idx_country (country)
+  INDEX idx_country (country),
+  INDEX idx_device_type (device_type),
+  INDEX idx_browser (browser),
+  INDEX idx_os (os)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Add columns if they don't exist (for existing databases)
+-- ALTER TABLE video_views ADD COLUMN IF NOT EXISTS browser VARCHAR(50);
+-- ALTER TABLE video_views ADD COLUMN IF NOT EXISTS os VARCHAR(50);
+-- ALTER TABLE video_views ADD COLUMN IF NOT EXISTS is_returning BOOLEAN DEFAULT FALSE;
 
 -- Notifications table
 CREATE TABLE IF NOT EXISTS notifications (

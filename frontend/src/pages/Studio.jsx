@@ -180,23 +180,26 @@ function StudioVideos() {
       ) : (
         <div className="space-y-3">
           {videos.map((video) => (
-            <div key={video.id} className="card p-4 flex gap-4">
-              <img src={video.thumbnail_url || '/placeholder.jpg'} alt="" className="w-40 aspect-video object-cover rounded-lg" />
-              <div className="flex-1 min-w-0">
-                <h3 className="font-medium line-clamp-1">{video.title}</h3>
-                <p className="text-sm text-dark-400 line-clamp-2 mt-1">{video.description || 'Aucune description'}</p>
-                <div className="flex items-center gap-4 mt-2 text-sm text-dark-400">
-                  <span className={`px-2 py-0.5 rounded text-xs ${video.visibility === 'public' ? 'bg-green-500/20 text-green-400' : 'bg-dark-700'}`}>
-                    {video.visibility}
-                  </span>
-                  <span>{video.view_count?.toLocaleString()} vues</span>
-                  <span>{video.like_count} likes</span>
+            <div key={video.id} className="card p-3 sm:p-4">
+              <div className="flex gap-3">
+                <img src={video.thumbnail_url || '/placeholder.jpg'} alt="" className="w-24 sm:w-40 aspect-video object-cover rounded-lg flex-shrink-0" />
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <h3 className="font-medium text-sm sm:text-base line-clamp-2">{video.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-dark-400">
+                    <span className={`px-2 py-0.5 rounded ${video.visibility === 'public' ? 'bg-green-500/20 text-green-400' : 'bg-dark-700'}`}>
+                      {video.visibility}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-auto pt-2 text-xs text-dark-400">
+                    <span>{video.view_count?.toLocaleString()} vues</span>
+                    <span>{video.like_count} likes</span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <a href={`/watch/${video.id}`} target="_blank" className="p-2 hover:bg-dark-700 rounded-lg"><FiEye /></a>
-                <button onClick={() => openEditModal(video)} className="p-2 hover:bg-dark-700 rounded-lg"><FiEdit /></button>
-                <button onClick={() => deleteVideo(video.id)} className="p-2 hover:bg-dark-700 rounded-lg text-red-400"><FiTrash2 /></button>
+                <div className="flex flex-col sm:flex-row items-center gap-1 flex-shrink-0">
+                  <a href={`/watch/${video.id}`} target="_blank" className="p-2 hover:bg-dark-700 rounded-lg text-dark-400 hover:text-white"><FiEye className="w-4 h-4" /></a>
+                  <button onClick={() => openEditModal(video)} className="p-2 hover:bg-dark-700 rounded-lg text-dark-400 hover:text-white"><FiEdit className="w-4 h-4" /></button>
+                  <button onClick={() => deleteVideo(video.id)} className="p-2 hover:bg-dark-700 rounded-lg text-red-400"><FiTrash2 className="w-4 h-4" /></button>
+                </div>
               </div>
             </div>
           ))}
@@ -292,10 +295,473 @@ function StudioVideos() {
 }
 
 function StudioAnalytics() {
+  const [analytics, setAnalytics] = useState(null)
+  const [realtime, setRealtime] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [period, setPeriod] = useState('28')
+  const [activeTab, setActiveTab] = useState('overview')
+
+  useEffect(() => {
+    fetchAnalytics()
+    fetchRealtime()
+    const interval = setInterval(fetchRealtime, 60000) // Refresh realtime every minute
+    return () => clearInterval(interval)
+  }, [period])
+
+  const fetchAnalytics = async () => {
+    setLoading(true)
+    try {
+      const response = await api.get(`/analytics/channel?period=${period}`)
+      setAnalytics(response.data)
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchRealtime = async () => {
+    try {
+      const response = await api.get('/analytics/realtime')
+      setRealtime(response.data)
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
+  const formatWatchTime = (seconds) => {
+    if (!seconds) return '0 min'
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    if (hours > 0) return `${hours}h ${minutes}min`
+    return `${minutes} min`
+  }
+
+  const formatNumber = (num) => {
+    if (!num) return '0'
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
+    return num.toLocaleString()
+  }
+
+  if (loading) {
+    return (
+      <div className="animate-pulse space-y-4">
+        <div className="h-8 bg-dark-800 rounded w-48" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[1,2,3,4].map(i => <div key={i} className="h-24 bg-dark-800 rounded-xl" />)}
+        </div>
+        <div className="h-64 bg-dark-800 rounded-xl" />
+      </div>
+    )
+  }
+
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-4">Analytics détaillées</h2>
-      <p className="text-dark-400">Statistiques avancées de votre chaîne</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h2 className="text-xl font-semibold">Analytics</h2>
+        <div className="flex items-center gap-2">
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            className="input py-2 text-sm"
+          >
+            <option value="7">7 derniers jours</option>
+            <option value="28">28 derniers jours</option>
+            <option value="90">90 derniers jours</option>
+            <option value="365">12 derniers mois</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 overflow-x-auto hide-scrollbar border-b border-dark-700 pb-2">
+        {[
+          { id: 'overview', label: 'Vue d\'ensemble' },
+          { id: 'content', label: 'Contenu' },
+          { id: 'audience', label: 'Audience' },
+          { id: 'realtime', label: 'Temps réel' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors ${
+              activeTab === tab.id ? 'bg-primary-500 text-white' : 'text-dark-400 hover:bg-dark-800'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Key Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="card p-4">
+              <p className="text-dark-400 text-xs sm:text-sm">Vues</p>
+              <p className="text-xl sm:text-2xl font-bold">{formatNumber(analytics?.totals?.total_views)}</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-dark-400 text-xs sm:text-sm">Temps de visionnage</p>
+              <p className="text-xl sm:text-2xl font-bold">{formatWatchTime(analytics?.watchTime)}</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-dark-400 text-xs sm:text-sm">Abonnés</p>
+              <p className="text-xl sm:text-2xl font-bold">
+                +{analytics?.subscriberGrowth?.reduce((sum, d) => sum + d.new_subscribers, 0) || 0}
+              </p>
+            </div>
+            <div className="card p-4">
+              <p className="text-dark-400 text-xs sm:text-sm">Engagement</p>
+              <p className="text-xl sm:text-2xl font-bold">{formatNumber(analytics?.totals?.total_likes + analytics?.totals?.total_comments)}</p>
+            </div>
+          </div>
+
+          {/* Views Chart */}
+          {analytics?.viewsOverTime?.length > 0 && (
+            <div className="card p-4">
+              <h3 className="font-medium mb-4">Vues</h3>
+              <div className="h-48 sm:h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={analytics.viewsOverTime}>
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fill: '#64748b', fontSize: 10 }} 
+                      tickFormatter={(d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                    />
+                    <YAxis tick={{ fill: '#64748b', fontSize: 10 }} />
+                    <Tooltip 
+                      contentStyle={{ background: '#1e293b', border: 'none', borderRadius: 8 }}
+                      labelFormatter={(d) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                    />
+                    <Line type="monotone" dataKey="views" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Subscriber Growth Chart */}
+          {analytics?.subscriberGrowth?.length > 0 && (
+            <div className="card p-4">
+              <h3 className="font-medium mb-4">Croissance des abonnés</h3>
+              <div className="h-48 sm:h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={analytics.subscriberGrowth}>
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                      tickFormatter={(d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                    />
+                    <YAxis tick={{ fill: '#64748b', fontSize: 10 }} />
+                    <Tooltip 
+                      contentStyle={{ background: '#1e293b', border: 'none', borderRadius: 8 }}
+                      labelFormatter={(d) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                    />
+                    <Line type="monotone" dataKey="new_subscribers" stroke="#10b981" strokeWidth={2} dot={false} name="Nouveaux abonnés" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Content Tab */}
+      {activeTab === 'content' && (
+        <div className="space-y-6">
+          <div className="card p-4">
+            <h3 className="font-medium mb-4">Vidéos les plus performantes</h3>
+            {analytics?.topVideos?.length > 0 ? (
+              <div className="space-y-3">
+                {analytics.topVideos.map((video, index) => (
+                  <div key={video.id} className="flex items-center gap-3">
+                    <span className="text-dark-500 text-sm w-6">{index + 1}</span>
+                    <img 
+                      src={video.thumbnail_url || '/placeholder.jpg'} 
+                      alt="" 
+                      className="w-20 sm:w-28 aspect-video object-cover rounded"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm line-clamp-1">{video.title}</p>
+                      <div className="flex items-center gap-3 text-xs text-dark-400 mt-1">
+                        <span>{formatNumber(video.view_count)} vues</span>
+                        <span>{formatNumber(video.like_count)} likes</span>
+                        <span className="hidden sm:inline">{formatNumber(video.recent_views)} vues récentes</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-dark-400 text-center py-6">Aucune donnée disponible</p>
+            )}
+          </div>
+
+          {/* Summary Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="card p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-primary-400">{analytics?.totals?.total_videos || 0}</p>
+              <p className="text-dark-400 text-sm">Vidéos publiées</p>
+            </div>
+            <div className="card p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-green-400">{formatNumber(analytics?.totals?.total_likes)}</p>
+              <p className="text-dark-400 text-sm">Total likes</p>
+            </div>
+            <div className="card p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-yellow-400">{formatNumber(analytics?.totals?.total_comments)}</p>
+              <p className="text-dark-400 text-sm">Total commentaires</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Audience Tab */}
+      {activeTab === 'audience' && (
+        <div className="space-y-6">
+          {/* Key Audience Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="card p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-primary-400">{formatNumber(analytics?.audience?.uniqueViewers)}</p>
+              <p className="text-dark-400 text-xs sm:text-sm">Spectateurs uniques</p>
+            </div>
+            <div className="card p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-green-400">{formatNumber(analytics?.audience?.totalSubscribers)}</p>
+              <p className="text-dark-400 text-xs sm:text-sm">Abonnés</p>
+            </div>
+            <div className="card p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-yellow-400">{formatWatchTime(analytics?.audience?.avgWatchDuration)}</p>
+              <p className="text-dark-400 text-xs sm:text-sm">Durée moy. visionnage</p>
+            </div>
+            <div className="card p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-purple-400">
+                {analytics?.audience?.uniqueViewers > 0 
+                  ? ((analytics?.audience?.returningViewers / analytics?.audience?.uniqueViewers) * 100).toFixed(0) 
+                  : 0}%
+              </p>
+              <p className="text-dark-400 text-xs sm:text-sm">Taux de retour</p>
+            </div>
+          </div>
+
+          {/* New vs Returning Viewers */}
+          <div className="card p-4">
+            <h3 className="font-medium mb-4">Nouveaux vs Fidèles</h3>
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Nouveaux spectateurs</span>
+                  <span className="text-dark-400">{formatNumber(analytics?.audience?.newViewers || 0)}</span>
+                </div>
+                <div className="h-3 bg-dark-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-green-500 rounded-full transition-all" 
+                    style={{ 
+                      width: `${analytics?.audience?.uniqueViewers > 0 
+                        ? ((analytics?.audience?.newViewers / (analytics?.audience?.newViewers + analytics?.audience?.returningViewers)) * 100) 
+                        : 50}%` 
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Spectateurs fidèles</span>
+                  <span className="text-dark-400">{formatNumber(analytics?.audience?.returningViewers || 0)}</span>
+                </div>
+                <div className="h-3 bg-dark-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-purple-500 rounded-full transition-all" 
+                    style={{ 
+                      width: `${analytics?.audience?.uniqueViewers > 0 
+                        ? ((analytics?.audience?.returningViewers / (analytics?.audience?.newViewers + analytics?.audience?.returningViewers)) * 100) 
+                        : 50}%` 
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Views by Hour */}
+          {analytics?.audience?.viewsByHour?.length > 0 && (
+            <div className="card p-4">
+              <h3 className="font-medium mb-4">Heures d'activité de votre audience</h3>
+              <div className="h-32 sm:h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={analytics.audience.viewsByHour}>
+                    <XAxis 
+                      dataKey="hour" 
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                      tickFormatter={(h) => `${h}h`}
+                    />
+                    <YAxis tick={{ fill: '#64748b', fontSize: 10 }} hide />
+                    <Tooltip 
+                      contentStyle={{ background: '#1e293b', border: 'none', borderRadius: 8 }}
+                      labelFormatter={(h) => `${h}h00 - ${h}h59`}
+                    />
+                    <Line type="monotone" dataKey="views" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="text-xs text-dark-500 mt-2 text-center">Meilleur moment pour publier : {
+                analytics.audience.viewsByHour.reduce((max, h) => h.views > max.views ? h : max, { hour: 0, views: 0 }).hour
+              }h00</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Devices */}
+            <div className="card p-4">
+              <h3 className="font-medium mb-4">Appareils</h3>
+              {analytics?.demographics?.devices?.length > 0 ? (
+                <div className="space-y-3">
+                  {analytics.demographics.devices.map((device) => {
+                    const total = analytics.demographics.devices.reduce((sum, d) => sum + d.views, 0)
+                    const percent = total > 0 ? ((device.views / total) * 100).toFixed(1) : 0
+                    const icons = { mobile: '📱', desktop: '💻', tablet: '📲', tv: '📺' }
+                    return (
+                      <div key={device.device_type} className="flex items-center gap-3">
+                        <span className="text-lg">{icons[device.device_type?.toLowerCase()] || '🖥️'}</span>
+                        <span className="w-16 text-sm capitalize">{device.device_type || 'Autre'}</span>
+                        <div className="flex-1 h-2 bg-dark-700 rounded-full overflow-hidden">
+                          <div className="h-full bg-primary-500 rounded-full" style={{ width: `${percent}%` }} />
+                        </div>
+                        <span className="text-sm text-dark-400 w-14 text-right">{percent}%</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-dark-400 text-center py-6 text-sm">Aucune donnée</p>
+              )}
+            </div>
+
+            {/* Operating Systems */}
+            <div className="card p-4">
+              <h3 className="font-medium mb-4">Systèmes d'exploitation</h3>
+              {analytics?.demographics?.operatingSystems?.length > 0 ? (
+                <div className="space-y-3">
+                  {analytics.demographics.operatingSystems.map((os) => {
+                    const total = analytics.demographics.operatingSystems.reduce((sum, o) => sum + o.views, 0)
+                    const percent = total > 0 ? ((os.views / total) * 100).toFixed(1) : 0
+                    const icons = { windows: '🪟', macos: '🍎', linux: '🐧', android: '🤖', ios: '📱' }
+                    return (
+                      <div key={os.os} className="flex items-center gap-3">
+                        <span className="text-lg">{icons[os.os?.toLowerCase()] || '💻'}</span>
+                        <span className="w-16 text-sm">{os.os || 'Autre'}</span>
+                        <div className="flex-1 h-2 bg-dark-700 rounded-full overflow-hidden">
+                          <div className="h-full bg-green-500 rounded-full" style={{ width: `${percent}%` }} />
+                        </div>
+                        <span className="text-sm text-dark-400 w-14 text-right">{percent}%</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-dark-400 text-center py-6 text-sm">Aucune donnée</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Browsers */}
+            <div className="card p-4">
+              <h3 className="font-medium mb-4">Navigateurs</h3>
+              {analytics?.demographics?.browsers?.length > 0 ? (
+                <div className="space-y-3">
+                  {analytics.demographics.browsers.map((browser) => {
+                    const total = analytics.demographics.browsers.reduce((sum, b) => sum + b.views, 0)
+                    const percent = total > 0 ? ((browser.views / total) * 100).toFixed(1) : 0
+                    const icons = { chrome: '🌐', firefox: '🦊', safari: '🧭', edge: '🔷', opera: '🔴' }
+                    return (
+                      <div key={browser.browser} className="flex items-center gap-3">
+                        <span className="text-lg">{icons[browser.browser?.toLowerCase()] || '🌐'}</span>
+                        <span className="w-16 text-sm">{browser.browser || 'Autre'}</span>
+                        <div className="flex-1 h-2 bg-dark-700 rounded-full overflow-hidden">
+                          <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${percent}%` }} />
+                        </div>
+                        <span className="text-sm text-dark-400 w-14 text-right">{percent}%</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-dark-400 text-center py-6 text-sm">Aucune donnée</p>
+              )}
+            </div>
+
+            {/* Countries */}
+            <div className="card p-4">
+              <h3 className="font-medium mb-4">Pays</h3>
+              {analytics?.demographics?.countries?.length > 0 ? (
+                <div className="space-y-2">
+                  {analytics.demographics.countries.slice(0, 5).map((country, index) => {
+                    const total = analytics.demographics.countries.reduce((sum, c) => sum + c.views, 0)
+                    const percent = total > 0 ? ((country.views / total) * 100).toFixed(1) : 0
+                    return (
+                      <div key={country.country} className="flex items-center justify-between py-2 border-b border-dark-700 last:border-0">
+                        <span className="text-sm">{index + 1}. {country.country}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-dark-500">{percent}%</span>
+                          <span className="text-sm text-dark-400">{formatNumber(country.views)}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-dark-400 text-center py-6 text-sm">Aucune donnée</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Realtime Tab */}
+      {activeTab === 'realtime' && (
+        <div className="space-y-6">
+          {/* Live Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="card p-6 text-center bg-gradient-to-br from-primary-500/20 to-transparent">
+              <div className="w-3 h-3 bg-red-500 rounded-full mx-auto mb-2 animate-pulse" />
+              <p className="text-3xl sm:text-4xl font-bold">{realtime?.currentlyWatching || 0}</p>
+              <p className="text-dark-400 text-sm">Spectateurs actuels</p>
+            </div>
+            <div className="card p-6 text-center">
+              <p className="text-3xl sm:text-4xl font-bold text-primary-400">{realtime?.viewsLastHour || 0}</p>
+              <p className="text-dark-400 text-sm">Vues (dernière heure)</p>
+            </div>
+            <div className="card p-6 text-center">
+              <p className="text-3xl sm:text-4xl font-bold text-green-400">
+                {realtime?.viewsPerMinute?.reduce((sum, m) => sum + m.views, 0) || 0}
+              </p>
+              <p className="text-dark-400 text-sm">Vues (30 dernières min)</p>
+            </div>
+          </div>
+
+          {/* Realtime Chart */}
+          {realtime?.viewsPerMinute?.length > 0 && (
+            <div className="card p-4">
+              <h3 className="font-medium mb-4">Vues en temps réel (30 dernières minutes)</h3>
+              <div className="h-48 sm:h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={realtime.viewsPerMinute}>
+                    <XAxis dataKey="minute" tick={{ fill: '#64748b', fontSize: 10 }} />
+                    <YAxis tick={{ fill: '#64748b', fontSize: 10 }} />
+                    <Tooltip contentStyle={{ background: '#1e293b', border: 'none', borderRadius: 8 }} />
+                    <Line type="monotone" dataKey="views" stroke="#ef4444" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          <p className="text-dark-500 text-xs text-center">Mise à jour automatique toutes les minutes</p>
+        </div>
+      )}
     </div>
   )
 }

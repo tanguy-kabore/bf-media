@@ -432,18 +432,75 @@ router.post('/:id/react', authenticate, asyncHandler(async (req, res) => {
   res.json({ likeCount: video.like_count, dislikeCount: video.dislike_count });
 }));
 
+// Helper function to parse user agent
+const parseUserAgent = (ua) => {
+  if (!ua) return { browser: 'Unknown', os: 'Unknown', deviceType: 'other' };
+  
+  // Detect browser
+  let browser = 'Other';
+  if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
+  else if (ua.includes('Firefox')) browser = 'Firefox';
+  else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+  else if (ua.includes('Edg')) browser = 'Edge';
+  else if (ua.includes('Opera') || ua.includes('OPR')) browser = 'Opera';
+  
+  // Detect OS
+  let os = 'Other';
+  if (ua.includes('Windows')) os = 'Windows';
+  else if (ua.includes('Mac OS')) os = 'macOS';
+  else if (ua.includes('Linux') && !ua.includes('Android')) os = 'Linux';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+  
+  // Detect device type
+  let deviceType = 'desktop';
+  if (ua.includes('Mobile') || ua.includes('Android')) deviceType = 'mobile';
+  else if (ua.includes('iPad') || ua.includes('Tablet')) deviceType = 'tablet';
+  else if (ua.includes('TV') || ua.includes('SmartTV')) deviceType = 'tv';
+  
+  return { browser, os, deviceType };
+};
+
 // Record view
 router.post('/:id/view', optionalAuth, asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { watchDuration, quality } = req.body;
+  const userAgent = req.headers['user-agent'] || '';
+  const sessionId = req.headers['x-session-id'] || req.ip;
+  
+  // Parse user agent for browser, OS, and device type
+  const { browser, os, deviceType } = parseUserAgent(userAgent);
+  
+  // Check if returning viewer (has viewed any video before)
+  let isReturning = false;
+  if (req.user?.id) {
+    const [prev] = await query('SELECT 1 FROM video_views WHERE user_id = ? LIMIT 1', [req.user.id]);
+    isReturning = !!prev;
+  } else {
+    const [prev] = await query('SELECT 1 FROM video_views WHERE session_id = ? OR ip_address = ? LIMIT 1', [sessionId, req.ip]);
+    isReturning = !!prev;
+  }
 
   await query('UPDATE videos SET view_count = view_count + 1 WHERE id = ?', [id]);
 
-  // Record detailed view analytics
+  // Record detailed view analytics with all data
   await query(`
-    INSERT INTO video_views (video_id, user_id, ip_address, user_agent, watch_duration, quality_watched)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `, [id, req.user?.id || null, req.ip, req.headers['user-agent'], watchDuration || 0, quality || 'auto']);
+    INSERT INTO video_views (video_id, user_id, session_id, ip_address, user_agent, device_type, browser, os, is_returning, referrer, watch_duration, quality_watched)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [
+    id, 
+    req.user?.id || null, 
+    sessionId,
+    req.ip, 
+    userAgent, 
+    deviceType,
+    browser,
+    os,
+    isReturning,
+    req.headers['referer'] || null,
+    watchDuration || 0, 
+    quality || 'auto'
+  ]);
 
   // Update channel total views
   await query(`

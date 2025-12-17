@@ -83,13 +83,91 @@ router.get('/channel', authenticate, asyncHandler(async (req, res) => {
     GROUP BY device_type
   `, [channel.id, days]);
 
+  // Browser stats
+  const browsers = await query(`
+    SELECT browser, COUNT(*) as views
+    FROM video_views vv
+    JOIN videos v ON vv.video_id = v.id
+    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND browser IS NOT NULL
+    GROUP BY browser
+    ORDER BY views DESC
+    LIMIT 5
+  `, [channel.id, days]);
+
+  // Operating system stats
+  const operatingSystems = await query(`
+    SELECT os, COUNT(*) as views
+    FROM video_views vv
+    JOIN videos v ON vv.video_id = v.id
+    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND os IS NOT NULL
+    GROUP BY os
+    ORDER BY views DESC
+    LIMIT 5
+  `, [channel.id, days]);
+
+  // Unique viewers
+  const [uniqueViewers] = await query(`
+    SELECT COUNT(DISTINCT COALESCE(user_id, session_id)) as unique_viewers
+    FROM video_views vv
+    JOIN videos v ON vv.video_id = v.id
+    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+  `, [channel.id, days]);
+
+  // New vs returning viewers
+  const [viewerTypes] = await query(`
+    SELECT 
+      SUM(CASE WHEN is_returning = 0 THEN 1 ELSE 0 END) as new_viewers,
+      SUM(CASE WHEN is_returning = 1 THEN 1 ELSE 0 END) as returning_viewers
+    FROM video_views vv
+    JOIN videos v ON vv.video_id = v.id
+    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+  `, [channel.id, days]);
+
+  // Watch time by hour of day
+  const viewsByHour = await query(`
+    SELECT HOUR(viewed_at) as hour, COUNT(*) as views
+    FROM video_views vv
+    JOIN videos v ON vv.video_id = v.id
+    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+    GROUP BY HOUR(viewed_at)
+    ORDER BY hour
+  `, [channel.id, days]);
+
+  // Average watch duration
+  const [avgWatchDuration] = await query(`
+    SELECT AVG(watch_duration) as avg_duration
+    FROM video_views vv
+    JOIN videos v ON vv.video_id = v.id
+    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+  `, [channel.id, days]);
+
+  // Subscriber count
+  const [subscriberCount] = await query(`
+    SELECT COUNT(*) as total_subscribers
+    FROM subscriptions
+    WHERE channel_id = ?
+  `, [channel.id]);
+
   res.json({
     totals,
     viewsOverTime,
     watchTime: watchTime.total_watch_time || 0,
     subscriberGrowth,
     topVideos,
-    demographics: { countries, devices }
+    demographics: { 
+      countries, 
+      devices, 
+      browsers,
+      operatingSystems 
+    },
+    audience: {
+      uniqueViewers: uniqueViewers?.unique_viewers || 0,
+      newViewers: viewerTypes?.new_viewers || 0,
+      returningViewers: viewerTypes?.returning_viewers || 0,
+      viewsByHour,
+      avgWatchDuration: avgWatchDuration?.avg_duration || 0,
+      totalSubscribers: subscriberCount?.total_subscribers || 0
+    }
   });
 }));
 
