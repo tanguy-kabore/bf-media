@@ -326,15 +326,15 @@ export default function Watch() {
   return (
     <>
       {/* Video player - fixed on mobile, normal on desktop */}
-      <div className="fixed sm:relative top-14 sm:top-0 left-0 right-0 sm:left-auto sm:right-auto z-40 sm:z-0 bg-black sm:bg-transparent -mx-3 sm:mx-0">
-        <div className="aspect-video sm:rounded-xl overflow-hidden">
+      <div className="fixed sm:static top-14 left-0 right-0 z-40 sm:z-0 bg-black sm:bg-transparent -mx-3 sm:mx-0">
+        <div className="w-full sm:rounded-xl overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)' }}>
           <video
             ref={videoRef}
             src={video.video_url}
             poster={video.thumbnail_url}
             controls
             autoPlay
-            className="w-full h-full"
+            className="w-full max-h-[calc(100vh-120px)] object-contain"
           />
         </div>
       </div>
@@ -344,7 +344,7 @@ export default function Watch() {
 
       <div className="flex flex-col xl:flex-row gap-6">
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-semibold mt-4">{video.title}</h1>
+          <h1 className="text-xl font-semibold sm:mt-4">{video.title}</h1>
 
         <div className="flex flex-wrap items-center justify-between gap-4 mt-4">
           <div className="flex items-center gap-4">
@@ -556,7 +556,7 @@ export default function Watch() {
         </div>
       </div>
 
-      <div className="w-full xl:w-96 space-y-3 flex-shrink-0">
+      <div className="w-full xl:w-96 space-y-3 flex-shrink-0 mt-6 xl:pt-4">
         <h3 className="font-medium mb-4">Vidéos suggérées</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">
           {relatedVideos.map((video) => (
