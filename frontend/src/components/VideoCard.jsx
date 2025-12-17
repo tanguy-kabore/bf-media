@@ -2,10 +2,20 @@ import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { FiClock, FiMoreVertical } from 'react-icons/fi'
+import { FiClock, FiMoreVertical, FiCheck } from 'react-icons/fi'
 import api from '../services/api'
 import useAuthStore from '../store/authStore'
 import toast from 'react-hot-toast'
+
+const VerifiedBadge = ({ size = 'sm' }) => {
+  const sizes = { sm: 'w-3.5 h-3.5', md: 'w-4 h-4' }
+  const iconSizes = { sm: 'w-2 h-2', md: 'w-2.5 h-2.5' }
+  return (
+    <span className={`inline-flex items-center justify-center ${sizes[size]} bg-blue-500 rounded-full flex-shrink-0`} title="Compte vérifié">
+      <FiCheck className={`${iconSizes[size]} text-white`} />
+    </span>
+  )
+}
 
 const formatDuration = (seconds) => {
   const h = Math.floor(seconds / 3600)
@@ -70,7 +80,10 @@ export default function VideoCard({ video, horizontal = false, compact = false }
           <h3 className="font-medium line-clamp-2 group-hover:text-primary-400 transition-colors">
             {video.title}
           </h3>
-          <p className="text-sm text-dark-400 mt-1">{video.channel_name}</p>
+          <p className="text-sm text-dark-400 mt-1 flex items-center gap-1">
+            <span>{video.channel_name}</span>
+            {!!video.channel_verified && <VerifiedBadge size="sm" />}
+          </p>
           <p className="text-sm text-dark-400">
             {formatViews(video.view_count)} vues • {timeAgo}
           </p>
@@ -104,9 +117,10 @@ export default function VideoCard({ video, horizontal = false, compact = false }
           </Link>
           <Link 
             to={`/channel/${video.channel_handle}`}
-            className="text-xs text-dark-400 hover:text-white mt-1 block truncate"
+            className="text-xs text-dark-400 hover:text-white mt-1 flex items-center gap-1 truncate"
           >
-            {video.channel_name}
+            <span className="truncate">{video.channel_name}</span>
+            {!!video.channel_verified && <VerifiedBadge size="sm" />}
           </Link>
           <p className="text-xs text-dark-400 mt-0.5">
             {formatViews(video.view_count)} vues • {timeAgo}
@@ -153,12 +167,10 @@ export default function VideoCard({ video, horizontal = false, compact = false }
           </h3>
           <Link 
             to={`/channel/${video.channel_handle}`}
-            className="text-sm text-dark-400 hover:text-white mt-1 block"
+            className="text-sm text-dark-400 hover:text-white mt-1 flex items-center gap-1"
           >
-            {video.channel_name}
-            {!!video.channel_verified && (
-              <span className="ml-1 text-primary-500">✓</span>
-            )}
+            <span>{video.channel_name}</span>
+            {!!video.channel_verified && <VerifiedBadge size="sm" />}
           </Link>
           <p className="text-sm text-dark-400">
             {formatViews(video.view_count)} vues • {timeAgo}

@@ -214,12 +214,70 @@ router.put('/preferences', authenticate, asyncHandler(async (req, res) => {
   res.json({ message: 'Préférences mises à jour' });
 }));
 
+// ==================== VERIFICATION REQUESTS ====================
+
+// Get user's verification status and history
+router.get('/verification/status', authenticate, asyncHandler(async (req, res) => {
+  const [user] = await query(`
+    SELECT is_verified, verification_badge, verified_at FROM users WHERE id = ?
+  `, [req.user.id]);
+
+  const requests = await query(`
+    SELECT id, document_type, status, rejection_reason, created_at, reviewed_at
+    FROM verification_requests WHERE user_id = ?
+    ORDER BY created_at DESC
+  `, [req.user.id]);
+
+  res.json({
+    isVerified: user?.is_verified || false,
+    hasBadge: user?.verification_badge || false,
+    verifiedAt: user?.verified_at,
+    requests
+  });
+}));
+
+// Submit verification request
+router.post('/verification/request', authenticate, asyncHandler(async (req, res) => {
+  const { documentType, documentFrontUrl, documentBackUrl, fullName, dateOfBirth } = req.body;
+
+  if (!documentType || !documentFrontUrl || !fullName) {
+    return res.status(400).json({ error: 'Document type, front image, and full name are required' });
+  }
+
+  if (documentType === 'national_id' && !documentBackUrl) {
+    return res.status(400).json({ error: 'Both sides of national ID are required' });
+  }
+
+  // Check if user already has a pending request
+  const [pending] = await query(`
+    SELECT id FROM verification_requests WHERE user_id = ? AND status = 'pending'
+  `, [req.user.id]);
+
+  if (pending) {
+    return res.status(400).json({ error: 'Vous avez déjà une demande en cours' });
+  }
+
+  // Check if user is already verified
+  const [user] = await query('SELECT is_verified FROM users WHERE id = ?', [req.user.id]);
+  if (user?.is_verified) {
+    return res.status(400).json({ error: 'Votre compte est déjà vérifié' });
+  }
+
+  const id = require('uuid').v4();
+  await query(`
+    INSERT INTO verification_requests (id, user_id, document_type, document_front_url, document_back_url, full_name, date_of_birth)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `, [id, req.user.id, documentType, documentFrontUrl, documentBackUrl || null, fullName, dateOfBirth || null]);
+
+  res.status(201).json({ message: 'Demande soumise avec succès', id });
+}));
+
 // Get user profile - MUST BE LAST (catches all /:username patterns)
 router.get('/:username', optionalAuth, asyncHandler(async (req, res) => {
   const { username } = req.params;
 
   const [user] = await query(`
-    SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, u.is_verified, u.created_at,
+    SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, u.is_verified, u.verification_badge, u.created_at,
            c.id as channel_id, c.name as channel_name, c.handle as channel_handle,
            COALESCE(c.avatar_url, u.avatar_url) as channel_avatar, c.subscriber_count, c.video_count
     FROM users u

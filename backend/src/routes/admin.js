@@ -152,7 +152,7 @@ router.get('/users', authenticate, isAdmin, asyncHandler(async (req, res) => {
   const users = await query(`
     SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.role, 
            u.is_verified, u.is_active, u.created_at, u.last_login,
-           5368709120 as storage_limit,
+           COALESCE(u.storage_limit, 5368709120) as storage_limit,
            COALESCE((SELECT SUM(v.file_size) FROM videos v JOIN channels c ON v.channel_id = c.id WHERE c.user_id = u.id), 0) as storage_used,
            (SELECT COUNT(*) FROM channels WHERE user_id = u.id) as channel_count,
            (SELECT COUNT(*) FROM videos v JOIN channels c ON v.channel_id = c.id WHERE c.user_id = u.id) as video_count
@@ -207,9 +207,23 @@ router.patch('/users/:id', authenticate, isAdmin, asyncHandler(async (req, res) 
   const params = [];
 
   if (role) { updates.push('role = ?'); params.push(role); }
-  if (isActive !== undefined) { updates.push('is_active = ?'); params.push(isActive); }
-  if (isVerified !== undefined) { updates.push('is_verified = ?'); params.push(isVerified); }
-  if (storageLimit !== undefined) { updates.push('storage_limit = ?'); params.push(storageLimit); }
+  if (isActive !== undefined) { updates.push('is_active = ?'); params.push(isActive ? 1 : 0); }
+  if (isVerified !== undefined) { updates.push('is_verified = ?'); params.push(isVerified ? 1 : 0); }
+  
+  // Handle storage_limit separately (column may not exist)
+  if (storageLimit !== undefined) {
+    try {
+      await query('UPDATE users SET storage_limit = ? WHERE id = ?', [storageLimit, id]);
+    } catch (e) {
+      // Column doesn't exist, try to add it
+      try {
+        await query('ALTER TABLE users ADD COLUMN storage_limit BIGINT DEFAULT 5368709120');
+        await query('UPDATE users SET storage_limit = ? WHERE id = ?', [storageLimit, id]);
+      } catch (e2) {
+        console.log('Could not update storage_limit:', e2.message);
+      }
+    }
+  }
 
   if (updates.length > 0) {
     params.push(id);
@@ -680,6 +694,83 @@ router.put('/settings', authenticate, isAdmin, asyncHandler(async (req, res) => 
   }
 
   res.json({ message: 'Paramètres mis à jour' });
+}));
+
+// ==================== VERIFICATION REQUESTS ====================
+
+// Get all verification requests
+router.get('/verifications', authenticate, isAdmin, asyncHandler(async (req, res) => {
+  const { page = 1, limit = 20, status } = req.query;
+  const offset = (page - 1) * limit;
+
+  let whereClause = '1=1';
+  const params = [];
+
+  if (status) {
+    whereClause += ' AND vr.status = ?';
+    params.push(status);
+  }
+
+  const requests = await query(`
+    SELECT vr.*, u.username, u.email, u.avatar_url, u.display_name
+    FROM verification_requests vr
+    JOIN users u ON vr.user_id = u.id
+    WHERE ${whereClause}
+    ORDER BY vr.created_at DESC
+    LIMIT ? OFFSET ?
+  `, [...params, parseInt(limit), parseInt(offset)]);
+
+  const [{ total }] = await query(`
+    SELECT COUNT(*) as total FROM verification_requests vr WHERE ${whereClause}
+  `, params);
+
+  res.json({ requests, pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / limit) } });
+}));
+
+// Review verification request (approve/reject)
+router.patch('/verifications/:id', authenticate, isAdmin, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status, rejection_reason } = req.body;
+
+  if (!['approved', 'rejected'].includes(status)) {
+    return res.status(400).json({ error: 'Statut invalide' });
+  }
+
+  // Get the request
+  const [request] = await query('SELECT * FROM verification_requests WHERE id = ?', [id]);
+  if (!request) {
+    return res.status(404).json({ error: 'Demande non trouvée' });
+  }
+
+  // Update request
+  await query(`
+    UPDATE verification_requests 
+    SET status = ?, rejection_reason = ?, reviewed_by = ?, reviewed_at = NOW()
+    WHERE id = ?
+  `, [status, status === 'rejected' ? rejection_reason : null, req.user.id, id]);
+
+  // If approved, update user's verification status
+  if (status === 'approved') {
+    try {
+      await query(`UPDATE users SET is_verified = 1 WHERE id = ?`, [request.user_id]);
+      // Try to update additional columns if they exist
+      await query(`UPDATE users SET verification_badge = 1, verified_at = NOW() WHERE id = ?`, [request.user_id]).catch(() => {});
+    } catch (e) {
+      console.error('Error updating user verification:', e);
+    }
+  }
+
+  res.json({ message: status === 'approved' ? 'Compte vérifié avec succès' : 'Demande rejetée' });
+}));
+
+// Revoke verification badge
+router.delete('/verifications/badge/:userId', authenticate, isAdmin, asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  await query(`UPDATE users SET is_verified = 0 WHERE id = ?`, [userId]);
+  await query(`UPDATE users SET verification_badge = 0, verified_at = NULL WHERE id = ?`, [userId]).catch(() => {});
+
+  res.json({ message: 'Badge de vérification retiré' });
 }));
 
 module.exports = router;

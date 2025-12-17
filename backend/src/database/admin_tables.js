@@ -151,6 +151,44 @@ async function createAdminTables() {
     `);
     console.log('✓ Reports table created');
 
+    // Create verification_requests table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS verification_requests (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL,
+        document_type ENUM('national_id', 'passport') NOT NULL,
+        document_front_url VARCHAR(500) NOT NULL,
+        document_back_url VARCHAR(500),
+        full_name VARCHAR(255) NOT NULL,
+        date_of_birth DATE,
+        status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+        rejection_reason TEXT,
+        reviewed_by VARCHAR(36),
+        reviewed_at DATETIME,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_user_id (user_id),
+        INDEX idx_status (status),
+        INDEX idx_created_at (created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log('✓ Verification requests table created');
+
+    // Add verification fields to users table
+    try {
+      await connection.execute(`ALTER TABLE users ADD COLUMN verification_badge BOOLEAN DEFAULT FALSE`);
+      console.log('✓ verification_badge column added');
+    } catch (e) {
+      if (!e.message.includes('Duplicate column')) console.log('verification_badge column may already exist');
+    }
+    try {
+      await connection.execute(`ALTER TABLE users ADD COLUMN verified_at DATETIME`);
+      console.log('✓ verified_at column added');
+    } catch (e) {
+      if (!e.message.includes('Duplicate column')) console.log('verified_at column may already exist');
+    }
+
     console.log('\n✅ All admin tables created successfully!');
 
   } catch (error) {

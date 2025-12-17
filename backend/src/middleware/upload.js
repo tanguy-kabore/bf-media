@@ -114,9 +114,31 @@ const uploadBanner = multer({
   }
 });
 
+// Document upload configuration (for verification)
+const documentStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../../uploads/documents');
+    ensureDir(uploadPath);
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  }
+});
+
+const uploadDocument = multer({
+  storage: documentStorage,
+  fileFilter: imageFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  }
+});
+
 module.exports = {
   uploadVideo,
   uploadThumbnail,
   uploadAvatar,
-  uploadBanner
+  uploadBanner,
+  uploadDocument
 };

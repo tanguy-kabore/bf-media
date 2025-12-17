@@ -1,23 +1,53 @@
 import { useState, useEffect, useRef } from 'react'
-import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { FiVideo, FiBarChart2, FiDollarSign, FiSettings, FiEdit, FiTrash2, FiEye, FiImage, FiUpload } from 'react-icons/fi'
+import { Routes, Route, NavLink, Navigate, Link } from 'react-router-dom'
+import { FiVideo, FiBarChart2, FiDollarSign, FiSettings, FiEdit, FiTrash2, FiEye, FiImage, FiUpload, FiHardDrive, FiFlag, FiMessageCircle, FiUserPlus, FiAlertTriangle, FiCheckCircle, FiClock } from 'react-icons/fi'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import api from '../services/api'
 import useAuthStore from '../store/authStore'
 import toast from 'react-hot-toast'
 
+const formatBytes = (bytes) => {
+  const num = Number(bytes)
+  if (!num || isNaN(num) || num <= 0) return '0 B'
+  const k = 1024, sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(num) / Math.log(k))
+  return parseFloat((num / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const formatTimeAgo = (date) => {
+  const now = new Date()
+  const d = new Date(date)
+  const diff = Math.floor((now - d) / 1000)
+  if (diff < 60) return 'À l\'instant'
+  if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`
+  if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)}h`
+  if (diff < 604800) return `Il y a ${Math.floor(diff / 86400)}j`
+  return d.toLocaleDateString('fr-FR')
+}
+
+const reasonLabels = {
+  spam: 'Spam', harassment: 'Harcèlement', hate_speech: 'Discours haineux',
+  violence: 'Violence', sexual_content: 'Contenu sexuel', copyright: 'Droits d\'auteur',
+  misinformation: 'Désinformation', other: 'Autre'
+}
+
 function StudioDashboard() {
   const [analytics, setAnalytics] = useState(null)
+  const [dashboard, setDashboard] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchAnalytics()
+    fetchData()
   }, [])
 
-  const fetchAnalytics = async () => {
+  const fetchData = async () => {
     try {
-      const response = await api.get('/analytics/channel?period=28')
-      setAnalytics(response.data)
+      const [analyticsRes, dashboardRes] = await Promise.all([
+        api.get('/analytics/channel?period=28'),
+        api.get('/analytics/dashboard')
+      ])
+      setAnalytics(analyticsRes.data)
+      setDashboard(dashboardRes.data)
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -27,11 +57,15 @@ function StudioDashboard() {
 
   if (loading) return <div className="animate-pulse space-y-4"><div className="h-32 bg-dark-800 rounded-xl" /></div>
 
+  const storagePercent = dashboard?.storage ? Math.min((dashboard.storage.used / dashboard.storage.limit) * 100, 100) : 0
+  const totalReports = dashboard?.reports?.stats ? Object.values(dashboard.reports.stats).reduce((a, b) => a + b, 0) : 0
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold">Tableau de bord</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Stats principales */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card p-4">
           <p className="text-dark-400 text-sm">Vues totales</p>
           <p className="text-2xl font-bold">{analytics?.totals?.total_views?.toLocaleString() || 0}</p>
@@ -50,6 +84,76 @@ function StudioDashboard() {
         </div>
       </div>
 
+      {/* Stockage et Signalements */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Stockage */}
+        <div className="card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <FiHardDrive className="w-5 h-5 text-primary-400" />
+            <h3 className="font-medium">Espace de stockage</h3>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-dark-400">{formatBytes(dashboard?.storage?.used || 0)} utilisés</span>
+              <span className="text-dark-400">sur {formatBytes(dashboard?.storage?.limit || 0)}</span>
+            </div>
+            <div className="h-3 bg-dark-700 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all ${storagePercent > 90 ? 'bg-red-500' : storagePercent > 70 ? 'bg-yellow-500' : 'bg-primary-500'}`}
+                style={{ width: `${storagePercent}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-dark-400">{dashboard?.storage?.videoCount || 0} vidéos</span>
+              <span className={`font-medium ${storagePercent > 90 ? 'text-red-400' : storagePercent > 70 ? 'text-yellow-400' : 'text-green-400'}`}>
+                {storagePercent.toFixed(1)}% utilisé
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Signalements */}
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <FiFlag className="w-5 h-5 text-orange-400" />
+              <h3 className="font-medium">Signalements sur vos vidéos</h3>
+            </div>
+            {totalReports > 0 && (
+              <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full text-xs font-medium">
+                {totalReports} total
+              </span>
+            )}
+          </div>
+          {totalReports === 0 ? (
+            <div className="text-center py-4 text-dark-400">
+              <FiCheckCircle className="w-8 h-8 mx-auto mb-2 text-green-400" />
+              <p className="text-sm">Aucun signalement sur vos vidéos</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-2">
+              <div className="text-center p-2 bg-yellow-500/10 rounded-lg">
+                <p className="text-lg font-bold text-yellow-400">{dashboard?.reports?.stats?.pending || 0}</p>
+                <p className="text-xs text-dark-400">En attente</p>
+              </div>
+              <div className="text-center p-2 bg-blue-500/10 rounded-lg">
+                <p className="text-lg font-bold text-blue-400">{dashboard?.reports?.stats?.reviewing || 0}</p>
+                <p className="text-xs text-dark-400">En cours</p>
+              </div>
+              <div className="text-center p-2 bg-green-500/10 rounded-lg">
+                <p className="text-lg font-bold text-green-400">{dashboard?.reports?.stats?.resolved || 0}</p>
+                <p className="text-xs text-dark-400">Résolus</p>
+              </div>
+              <div className="text-center p-2 bg-dark-700 rounded-lg">
+                <p className="text-lg font-bold">{dashboard?.reports?.stats?.dismissed || 0}</p>
+                <p className="text-xs text-dark-400">Rejetés</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Graphique des vues */}
       {analytics?.viewsOverTime?.length > 0 && (
         <div className="card p-4">
           <h3 className="font-medium mb-4">Vues (28 derniers jours)</h3>
@@ -66,6 +170,63 @@ function StudioDashboard() {
         </div>
       )}
 
+      {/* Vidéos signalées récentes */}
+      {dashboard?.reports?.recent?.length > 0 && (
+        <div className="card p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <FiAlertTriangle className="w-5 h-5 text-orange-400" />
+            <h3 className="font-medium">Vidéos signalées récemment</h3>
+          </div>
+          <div className="space-y-3">
+            {dashboard.reports.recent.slice(0, 5).map((report) => (
+              <div key={report.id} className="flex items-center gap-3 p-3 bg-dark-800/50 rounded-lg">
+                <img src={report.thumbnail_url || '/placeholder.jpg'} alt="" className="w-20 h-12 object-cover rounded" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm line-clamp-1">{report.video_title}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="px-2 py-0.5 bg-dark-700 rounded text-xs">{reasonLabels[report.reason] || report.reason}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs ${
+                      report.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                      report.status === 'reviewing' ? 'bg-blue-500/20 text-blue-400' :
+                      report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
+                      'bg-dark-600'
+                    }`}>
+                      {report.status === 'pending' ? 'En attente' : report.status === 'reviewing' ? 'En cours' : report.status === 'resolved' ? 'Résolu' : 'Rejeté'}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-xs text-dark-400">{formatTimeAgo(report.created_at)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Activité récente */}
+      {dashboard?.recentActivity?.length > 0 && (
+        <div className="card p-4">
+          <h3 className="font-medium mb-4">Activité récente</h3>
+          <div className="space-y-3">
+            {dashboard.recentActivity.map((activity, idx) => (
+              <div key={idx} className="flex items-start gap-3 text-sm">
+                <div className={`p-2 rounded-full ${activity.type === 'comment' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}`}>
+                  {activity.type === 'comment' ? <FiMessageCircle className="w-4 h-4" /> : <FiUserPlus className="w-4 h-4" />}
+                </div>
+                <div className="flex-1">
+                  {activity.type === 'comment' ? (
+                    <p><span className="font-medium">{activity.username}</span> a commenté sur <span className="text-primary-400">{activity.video_title}</span></p>
+                  ) : (
+                    <p><span className="font-medium">{activity.username}</span> s'est abonné à votre chaîne</p>
+                  )}
+                  <p className="text-dark-400 text-xs mt-0.5">{formatTimeAgo(activity.created_at)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Vidéos populaires */}
       {analytics?.topVideos?.length > 0 && (
         <div className="card p-4">
           <h3 className="font-medium mb-4">Vidéos populaires</h3>

@@ -85,7 +85,8 @@ router.get('/:handle', optionalAuth, asyncHandler(async (req, res) => {
 
   const channels = await query(`
     SELECT c.id, c.user_id, c.name, c.handle, COALESCE(c.avatar_url, u.avatar_url) as avatar_url,
-           c.banner_url, c.description, c.subscriber_count, c.video_count, c.total_views, c.is_verified, 
+           c.banner_url, c.description, c.subscriber_count, c.video_count, c.total_views, 
+           u.is_verified as is_verified,
            c.created_at, u.username, u.display_name as owner_name
     FROM channels c
     JOIN users u ON c.user_id = u.id

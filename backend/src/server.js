@@ -112,6 +112,16 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Document upload endpoint for verification
+const { uploadDocument } = require('./middleware/upload');
+const { authenticate } = require('./middleware/auth');
+app.post('/api/upload/document', authenticate, uploadDocument.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Fichier requis' });
+  }
+  res.json({ url: `/uploads/documents/${req.file.filename}` });
+});
+
 // Public platform settings endpoint (accessible without auth)
 app.get('/api/platform/settings', async (req, res) => {
   try {

@@ -155,7 +155,11 @@ export default function Channel() {
         <div className="flex-1 min-w-0 text-center sm:text-left">
           <div className="flex items-center justify-center sm:justify-start gap-2">
             <h1 className="text-xl sm:text-2xl font-bold truncate">{channel.name}</h1>
-            {!!channel.is_verified && <FiCheck className="w-4 h-4 sm:w-5 sm:h-5 text-primary-500 flex-shrink-0" />}
+            {!!channel.is_verified && (
+              <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-500 rounded-full flex items-center justify-center" title="Compte vérifié">
+                <FiCheck className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+              </span>
+            )}
           </div>
           <p className="text-dark-400 text-sm sm:text-base">@{channel.handle}</p>
           <p className="text-dark-400 text-xs sm:text-sm mt-1">

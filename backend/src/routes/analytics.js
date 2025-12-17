@@ -332,4 +332,103 @@ router.get('/realtime', authenticate, asyncHandler(async (req, res) => {
   });
 }));
 
+// Get user dashboard data (storage, reports, etc.)
+router.get('/dashboard', authenticate, asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  // Get user storage info (with fallback for missing column)
+  let storageLimit = 5368709120; // Default 5GB
+  try {
+    const [userStorage] = await query(`SELECT storage_limit FROM users WHERE id = ?`, [userId]);
+    if (userStorage?.storage_limit) storageLimit = userStorage.storage_limit;
+  } catch (e) {
+    // Column doesn't exist, use default
+  }
+
+  // Get channel info
+  const [channel] = await query('SELECT id FROM channels WHERE user_id = ?', [userId]);
+  
+  // Calculate actual storage used from videos
+  let actualStorageUsed = 0;
+  let videoCount = 0;
+  if (channel) {
+    const [storageCalc] = await query(`
+      SELECT COALESCE(SUM(file_size), 0) as total_size, COUNT(*) as count
+      FROM videos WHERE channel_id = ?
+    `, [channel.id]);
+    actualStorageUsed = storageCalc.total_size || 0;
+    videoCount = storageCalc.count || 0;
+  }
+
+  // Get reported videos for this user's channel
+  let reportedVideos = [];
+  if (channel) {
+    reportedVideos = await query(`
+      SELECT r.id, r.reason, r.status, r.created_at, r.action_taken,
+             v.id as video_id, v.title as video_title, v.thumbnail_url
+      FROM reports r
+      JOIN videos v ON r.content_id = v.id AND r.content_type = 'video'
+      WHERE v.channel_id = ?
+      ORDER BY r.created_at DESC
+      LIMIT 10
+    `, [channel.id]);
+  }
+
+  // Count reports by status
+  let reportStats = { pending: 0, reviewing: 0, resolved: 0, dismissed: 0 };
+  if (channel) {
+    const reportCounts = await query(`
+      SELECT r.status, COUNT(*) as count
+      FROM reports r
+      JOIN videos v ON r.content_id = v.id AND r.content_type = 'video'
+      WHERE v.channel_id = ?
+      GROUP BY r.status
+    `, [channel.id]);
+    reportCounts.forEach(r => { reportStats[r.status] = r.count; });
+  }
+
+  // Get recent activity
+  let recentActivity = [];
+  if (channel) {
+    // Recent comments on user's videos
+    const recentComments = await query(`
+      SELECT 'comment' as type, c.created_at, c.content as text, 
+             u.username, v.title as video_title, v.id as video_id
+      FROM comments c
+      JOIN videos v ON c.video_id = v.id
+      JOIN users u ON c.user_id = u.id
+      WHERE v.channel_id = ? AND c.user_id != ?
+      ORDER BY c.created_at DESC
+      LIMIT 5
+    `, [channel.id, userId]);
+
+    // Recent subscribers
+    const recentSubs = await query(`
+      SELECT 'subscription' as type, s.created_at, u.username
+      FROM subscriptions s
+      JOIN users u ON s.user_id = u.id
+      WHERE s.channel_id = ?
+      ORDER BY s.created_at DESC
+      LIMIT 5
+    `, [channel.id]);
+
+    recentActivity = [...recentComments, ...recentSubs]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 10);
+  }
+
+  res.json({
+    storage: {
+      used: actualStorageUsed,
+      limit: storageLimit,
+      videoCount
+    },
+    reports: {
+      stats: reportStats,
+      recent: reportedVideos
+    },
+    recentActivity
+  });
+}));
+
 module.exports = router;

@@ -65,7 +65,7 @@ export default function Admin() {
 
   useEffect(() => {
     const path = location.pathname.split('/').pop()
-    if (['users', 'videos', 'reports', 'ads', 'settings'].includes(path)) {
+    if (['users', 'videos', 'reports', 'verifications', 'ads', 'settings'].includes(path)) {
       setActiveTab(path)
     } else {
       setActiveTab('dashboard')
@@ -79,6 +79,7 @@ export default function Admin() {
     { id: 'users', icon: FiUsers, label: 'Utilisateurs' },
     { id: 'videos', icon: FiVideo, label: 'Vidéos' },
     { id: 'reports', icon: FiFlag, label: 'Signalements' },
+    { id: 'verifications', icon: FiUserCheck, label: 'Vérifications' },
     { id: 'ads', icon: FiDollarSign, label: 'Publicités' },
     { id: 'settings', icon: FiSettings, label: 'Paramètres' }
   ]
@@ -161,6 +162,7 @@ export default function Admin() {
             {activeTab === 'users' && <AdminUsers />}
             {activeTab === 'videos' && <AdminVideos />}
             {activeTab === 'reports' && <AdminReports />}
+            {activeTab === 'verifications' && <AdminVerifications />}
             {activeTab === 'ads' && <AdminAds />}
             {activeTab === 'settings' && <AdminSettings />}
           </div>
@@ -777,6 +779,198 @@ const ReportDetailsModal = ({ report, details, loading, reasonLabels, onClose, o
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+const AdminVerifications = () => {
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [selectedRequest, setSelectedRequest] = useState(null)
+  const [rejectionReason, setRejectionReason] = useState('')
+
+  useEffect(() => { fetchRequests() }, [statusFilter])
+
+  const fetchRequests = async () => {
+    setLoading(true)
+    try {
+      const res = await api.get(`/admin/verifications?status=${statusFilter}`)
+      setRequests(res.data.requests || [])
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+
+  const handleReview = async (id, status) => {
+    try {
+      await api.patch(`/admin/verifications/${id}`, { status, rejection_reason: status === 'rejected' ? rejectionReason : null })
+      fetchRequests()
+      setSelectedRequest(null)
+      setRejectionReason('')
+    } catch (e) { console.error(e) }
+  }
+
+  const revokeBadge = async (userId) => {
+    if (!confirm('Retirer le badge de vérification ?')) return
+    try {
+      await api.delete(`/admin/verifications/badge/${userId}`)
+      fetchRequests()
+    } catch (e) { console.error(e) }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Demandes de vérification</h1>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg">
+          <option value="">Toutes</option>
+          <option value="pending">En attente</option>
+          <option value="approved">Approuvées</option>
+          <option value="rejected">Rejetées</option>
+        </select>
+      </div>
+
+      <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-dark-700/50">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm">Utilisateur</th>
+              <th className="px-4 py-3 text-left text-sm">Document</th>
+              <th className="px-4 py-3 text-left text-sm">Nom complet</th>
+              <th className="px-4 py-3 text-left text-sm">Statut</th>
+              <th className="px-4 py-3 text-left text-sm">Date</th>
+              <th className="px-4 py-3 text-right text-sm">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-dark-700">
+            {loading ? (
+              <tr><td colSpan={6} className="py-8 text-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500 mx-auto"></div></td></tr>
+            ) : requests.length === 0 ? (
+              <tr><td colSpan={6} className="py-8 text-center text-dark-400">Aucune demande</td></tr>
+            ) : requests.map(r => (
+              <tr key={r.id} className="hover:bg-dark-700/30">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-dark-600 overflow-hidden">
+                      {r.avatar_url ? <img src={r.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center">{r.username?.charAt(0).toUpperCase()}</div>}
+                    </div>
+                    <div>
+                      <p className="font-medium">{r.display_name || r.username}</p>
+                      <p className="text-sm text-dark-400">{r.email}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="px-2 py-1 rounded text-xs bg-dark-600">{r.document_type === 'national_id' ? 'CNI' : 'Passeport'}</span>
+                </td>
+                <td className="px-4 py-3 text-sm">{r.full_name}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    r.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                    r.status === 'approved' ? 'bg-green-500/20 text-green-400' :
+                    'bg-red-500/20 text-red-400'
+                  }`}>
+                    {r.status === 'pending' ? 'En attente' : r.status === 'approved' ? 'Approuvée' : 'Rejetée'}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-dark-400">{new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
+                <td className="px-4 py-3">
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => setSelectedRequest(r)} className="p-2 hover:bg-dark-600 rounded-lg" title="Voir détails">
+                      <FiEye className="w-4 h-4" />
+                    </button>
+                    {r.status === 'approved' && (
+                      <button onClick={() => revokeBadge(r.user_id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400" title="Retirer le badge">
+                        <FiX className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Detail Modal */}
+      {selectedRequest && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-900 rounded-xl w-full max-w-2xl border border-dark-700 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-4 border-b border-dark-700">
+              <h3 className="font-semibold">Demande de vérification</h3>
+              <button onClick={() => { setSelectedRequest(null); setRejectionReason('') }}><FiX className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* User info */}
+              <div className="flex items-center gap-4 p-4 bg-dark-800 rounded-lg">
+                <div className="w-16 h-16 rounded-full bg-dark-600 overflow-hidden">
+                  {selectedRequest.avatar_url ? <img src={selectedRequest.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">{selectedRequest.username?.charAt(0).toUpperCase()}</div>}
+                </div>
+                <div>
+                  <p className="font-semibold text-lg">{selectedRequest.display_name || selectedRequest.username}</p>
+                  <p className="text-dark-400">{selectedRequest.email}</p>
+                  <p className="text-sm text-dark-500">Nom sur document : {selectedRequest.full_name}</p>
+                </div>
+              </div>
+
+              {/* Documents */}
+              <div>
+                <h4 className="font-medium mb-3">Documents soumis</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-dark-400 mb-2">{selectedRequest.document_type === 'national_id' ? 'Recto CNI' : 'Page passeport'}</p>
+                    <a href={selectedRequest.document_front_url} target="_blank" rel="noopener noreferrer" className="block border border-dark-700 rounded-lg overflow-hidden hover:border-primary-500 transition-colors">
+                      <img src={selectedRequest.document_front_url} alt="Document front" className="w-full h-48 object-cover" />
+                    </a>
+                  </div>
+                  {selectedRequest.document_back_url && (
+                    <div>
+                      <p className="text-sm text-dark-400 mb-2">Verso CNI</p>
+                      <a href={selectedRequest.document_back_url} target="_blank" rel="noopener noreferrer" className="block border border-dark-700 rounded-lg overflow-hidden hover:border-primary-500 transition-colors">
+                        <img src={selectedRequest.document_back_url} alt="Document back" className="w-full h-48 object-cover" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              {selectedRequest.status === 'pending' && (
+                <div className="space-y-4 pt-4 border-t border-dark-700">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Raison du rejet (optionnel)</label>
+                    <textarea 
+                      value={rejectionReason}
+                      onChange={e => setRejectionReason(e.target.value)}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg"
+                      placeholder="Ex: Document illisible, informations non concordantes..."
+                      rows={2}
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => handleReview(selectedRequest.id, 'approved')} className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium">
+                      Approuver
+                    </button>
+                    <button onClick={() => handleReview(selectedRequest.id, 'rejected')} className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium">
+                      Rejeter
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selectedRequest.status !== 'pending' && (
+                <div className={`p-4 rounded-lg ${selectedRequest.status === 'approved' ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'}`}>
+                  <p className={`font-medium ${selectedRequest.status === 'approved' ? 'text-green-400' : 'text-red-400'}`}>
+                    {selectedRequest.status === 'approved' ? 'Demande approuvée' : 'Demande rejetée'}
+                  </p>
+                  {selectedRequest.rejection_reason && <p className="text-sm text-dark-400 mt-1">Raison : {selectedRequest.rejection_reason}</p>}
+                  <p className="text-xs text-dark-500 mt-2">Le {new Date(selectedRequest.reviewed_at).toLocaleDateString('fr-FR')}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

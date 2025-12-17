@@ -42,7 +42,7 @@ router.get('/', optionalAuth, asyncHandler(async (req, res) => {
     SELECT v.id, v.title, v.description, v.thumbnail_url, v.duration, v.view_count,
            v.like_count, v.published_at, v.created_at,
            ch.id as channel_id, ch.name as channel_name, ch.handle as channel_handle,
-           COALESCE(ch.avatar_url, u.avatar_url) as channel_avatar, ch.is_verified as channel_verified,
+           COALESCE(ch.avatar_url, u.avatar_url) as channel_avatar, u.is_verified as channel_verified,
            cat.name as category_name, cat.slug as category_slug
     FROM videos v
     JOIN channels ch ON v.channel_id = ch.id

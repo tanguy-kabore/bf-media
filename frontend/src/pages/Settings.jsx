@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Navigate } from 'react-router-dom'
-import { FiUser, FiLock, FiBell, FiShield, FiCamera } from 'react-icons/fi'
+import { FiUser, FiLock, FiBell, FiShield, FiCamera, FiCheckCircle, FiUpload, FiX, FiClock, FiAlertCircle } from 'react-icons/fi'
 import api from '../services/api'
 import useAuthStore from '../store/authStore'
 import toast from 'react-hot-toast'
@@ -129,11 +129,79 @@ export default function Settings() {
     return <Navigate to="/login" replace />
   }
 
+  // Verification state
+  const [verificationStatus, setVerificationStatus] = useState(null)
+  const [verificationForm, setVerificationForm] = useState({
+    documentType: 'national_id',
+    fullName: '',
+    dateOfBirth: '',
+    documentFrontUrl: '',
+    documentBackUrl: ''
+  })
+  const [uploadingDoc, setUploadingDoc] = useState({ front: false, back: false })
+  const [submittingVerification, setSubmittingVerification] = useState(false)
+  const frontInputRef = useRef(null)
+  const backInputRef = useRef(null)
+
+  useEffect(() => {
+    if (activeTab === 'verification') fetchVerificationStatus()
+  }, [activeTab])
+
+  const fetchVerificationStatus = async () => {
+    try {
+      const res = await api.get('/users/verification/status')
+      setVerificationStatus(res.data)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleDocUpload = async (e, side) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploadingDoc(prev => ({ ...prev, [side]: true }))
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await api.post('/upload/document', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setVerificationForm(prev => ({ ...prev, [side === 'front' ? 'documentFrontUrl' : 'documentBackUrl']: res.data.url }))
+      toast.success(`Document ${side === 'front' ? 'recto' : 'verso'} uploadé`)
+    } catch (e) {
+      toast.error('Erreur lors de l\'upload')
+    } finally {
+      setUploadingDoc(prev => ({ ...prev, [side]: false }))
+    }
+  }
+
+  const submitVerification = async (e) => {
+    e.preventDefault()
+    if (!verificationForm.documentFrontUrl || !verificationForm.fullName) {
+      toast.error('Veuillez remplir tous les champs obligatoires')
+      return
+    }
+    if (verificationForm.documentType === 'national_id' && !verificationForm.documentBackUrl) {
+      toast.error('Veuillez uploader les deux côtés de la carte d\'identité')
+      return
+    }
+    setSubmittingVerification(true)
+    try {
+      await api.post('/users/verification/request', verificationForm)
+      toast.success('Demande de vérification soumise')
+      fetchVerificationStatus()
+      setVerificationForm({ documentType: 'national_id', fullName: '', dateOfBirth: '', documentFrontUrl: '', documentBackUrl: '' })
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Erreur')
+    } finally {
+      setSubmittingVerification(false)
+    }
+  }
+
   const tabs = [
     { id: 'profile', icon: FiUser, label: 'Profil' },
     { id: 'password', icon: FiLock, label: 'Mot de passe' },
     { id: 'notifications', icon: FiBell, label: 'Notifications' },
     { id: 'privacy', icon: FiShield, label: 'Confidentialité' },
+    { id: 'verification', icon: FiCheckCircle, label: 'Vérification' },
   ]
 
   return (
@@ -328,6 +396,191 @@ export default function Settings() {
                 </label>
               </div>
               {savingPrefs && <p className="text-sm text-dark-400 mt-4">Enregistrement...</p>}
+            </div>
+          )}
+
+          {activeTab === 'verification' && (
+            <div className="card p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Vérification du compte</h2>
+                {verificationStatus?.hasBadge && (
+                  <span className="flex items-center gap-1 px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm">
+                    <FiCheckCircle className="w-4 h-4" /> Compte vérifié
+                  </span>
+                )}
+              </div>
+
+              {verificationStatus?.hasBadge ? (
+                <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                      <FiCheckCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-green-400">Votre compte est vérifié</p>
+                      <p className="text-sm text-dark-400">Vous bénéficiez du badge de vérification sur votre profil.</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Pending request notice */}
+                  {verificationStatus?.requests?.some(r => r.status === 'pending') && (
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                      <div className="flex items-center gap-3">
+                        <FiClock className="w-6 h-6 text-yellow-400" />
+                        <div>
+                          <p className="font-medium text-yellow-400">Demande en cours d'examen</p>
+                          <p className="text-sm text-dark-400">Votre demande est en cours de traitement. Nous vous informerons du résultat.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Last rejected request */}
+                  {verificationStatus?.requests?.find(r => r.status === 'rejected') && (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <FiAlertCircle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-medium text-red-400">Dernière demande rejetée</p>
+                          <p className="text-sm text-dark-400 mt-1">
+                            Raison : {verificationStatus.requests.find(r => r.status === 'rejected')?.rejection_reason || 'Non spécifiée'}
+                          </p>
+                          <p className="text-sm text-dark-400 mt-1">Vous pouvez soumettre une nouvelle demande ci-dessous.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Verification form */}
+                  {!verificationStatus?.requests?.some(r => r.status === 'pending') && (
+                    <form onSubmit={submitVerification} className="space-y-4">
+                      <div className="bg-dark-800 rounded-lg p-4">
+                        <p className="text-sm text-dark-400 mb-2">
+                          Pour vérifier votre compte, veuillez soumettre une pièce d'identité valide. Vos documents seront examinés par notre équipe.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Type de document *</label>
+                        <select
+                          value={verificationForm.documentType}
+                          onChange={(e) => setVerificationForm({ ...verificationForm, documentType: e.target.value, documentBackUrl: '' })}
+                          className="input"
+                        >
+                          <option value="national_id">Carte Nationale d'Identité (CNI)</option>
+                          <option value="passport">Passeport</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Nom complet (tel qu'il apparaît sur le document) *</label>
+                        <input
+                          type="text"
+                          value={verificationForm.fullName}
+                          onChange={(e) => setVerificationForm({ ...verificationForm, fullName: e.target.value })}
+                          className="input"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Date de naissance</label>
+                        <input
+                          type="date"
+                          value={verificationForm.dateOfBirth}
+                          onChange={(e) => setVerificationForm({ ...verificationForm, dateOfBirth: e.target.value })}
+                          className="input"
+                        />
+                      </div>
+
+                      {/* Document uploads */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">
+                            {verificationForm.documentType === 'national_id' ? 'Recto de la CNI *' : 'Page d\'identité du passeport *'}
+                          </label>
+                          <input type="file" ref={frontInputRef} onChange={(e) => handleDocUpload(e, 'front')} accept="image/*" className="hidden" />
+                          <div 
+                            onClick={() => !uploadingDoc.front && frontInputRef.current?.click()}
+                            className={`border-2 border-dashed border-dark-600 rounded-lg p-6 text-center cursor-pointer hover:border-primary-500 transition-colors ${verificationForm.documentFrontUrl ? 'border-green-500' : ''}`}
+                          >
+                            {uploadingDoc.front ? (
+                              <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto" />
+                            ) : verificationForm.documentFrontUrl ? (
+                              <div className="space-y-2">
+                                <FiCheckCircle className="w-8 h-8 text-green-400 mx-auto" />
+                                <p className="text-sm text-green-400">Document uploadé</p>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setVerificationForm(f => ({ ...f, documentFrontUrl: '' })) }} className="text-xs text-red-400 hover:underline">Supprimer</button>
+                              </div>
+                            ) : (
+                              <>
+                                <FiUpload className="w-8 h-8 text-dark-400 mx-auto mb-2" />
+                                <p className="text-sm text-dark-400">Cliquez pour uploader</p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {verificationForm.documentType === 'national_id' && (
+                          <div>
+                            <label className="block text-sm font-medium mb-2">Verso de la CNI *</label>
+                            <input type="file" ref={backInputRef} onChange={(e) => handleDocUpload(e, 'back')} accept="image/*" className="hidden" />
+                            <div 
+                              onClick={() => !uploadingDoc.back && backInputRef.current?.click()}
+                              className={`border-2 border-dashed border-dark-600 rounded-lg p-6 text-center cursor-pointer hover:border-primary-500 transition-colors ${verificationForm.documentBackUrl ? 'border-green-500' : ''}`}
+                            >
+                              {uploadingDoc.back ? (
+                                <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto" />
+                              ) : verificationForm.documentBackUrl ? (
+                                <div className="space-y-2">
+                                  <FiCheckCircle className="w-8 h-8 text-green-400 mx-auto" />
+                                  <p className="text-sm text-green-400">Document uploadé</p>
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); setVerificationForm(f => ({ ...f, documentBackUrl: '' })) }} className="text-xs text-red-400 hover:underline">Supprimer</button>
+                                </div>
+                              ) : (
+                                <>
+                                  <FiUpload className="w-8 h-8 text-dark-400 mx-auto mb-2" />
+                                  <p className="text-sm text-dark-400">Cliquez pour uploader</p>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <button type="submit" disabled={submittingVerification} className="btn btn-primary w-full">
+                        {submittingVerification ? 'Envoi en cours...' : 'Soumettre la demande'}
+                      </button>
+                    </form>
+                  )}
+                </>
+              )}
+
+              {/* Request history */}
+              {verificationStatus?.requests?.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="font-medium mb-3">Historique des demandes</h3>
+                  <div className="space-y-2">
+                    {verificationStatus.requests.map((req) => (
+                      <div key={req.id} className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            req.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                            req.status === 'approved' ? 'bg-green-500/20 text-green-400' :
+                            'bg-red-500/20 text-red-400'
+                          }`}>
+                            {req.status === 'pending' ? 'En attente' : req.status === 'approved' ? 'Approuvée' : 'Rejetée'}
+                          </span>
+                          <span className="text-sm">{req.document_type === 'national_id' ? 'CNI' : 'Passeport'}</span>
+                        </div>
+                        <span className="text-xs text-dark-400">{new Date(req.created_at).toLocaleDateString('fr-FR')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
