@@ -326,15 +326,18 @@ export default function Watch() {
   return (
     <div className="flex flex-col xl:flex-row gap-6">
       <div className="flex-1 min-w-0">
-        <div className="aspect-video bg-black rounded-xl overflow-hidden">
-          <video
-            ref={videoRef}
-            src={video.video_url}
-            poster={video.thumbnail_url}
-            controls
-            autoPlay
-            className="w-full h-full"
-          />
+        {/* Video player - sticky on mobile */}
+        <div className="sticky top-0 z-30 -mx-3 sm:mx-0 bg-dark-950 sm:bg-transparent">
+          <div className="aspect-video bg-black sm:rounded-xl overflow-hidden">
+            <video
+              ref={videoRef}
+              src={video.video_url}
+              poster={video.thumbnail_url}
+              controls
+              autoPlay
+              className="w-full h-full"
+            />
+          </div>
         </div>
 
         <h1 className="text-xl font-semibold mt-4">{video.title}</h1>
