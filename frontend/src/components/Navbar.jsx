@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FiMenu, FiSearch, FiBell, FiVideo, FiUser, FiLogOut, FiSettings, FiChevronDown, FiPlus, FiLayers, FiArrowLeft, FiX, FiShield } from 'react-icons/fi'
+import { FiMenu, FiSearch, FiBell, FiVideo, FiUser, FiLogOut, FiSettings, FiChevronDown, FiPlus, FiLayers, FiArrowLeft, FiX, FiShield, FiFileText } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
 import usePlatformStore from '../store/platformStore'
 
@@ -274,6 +274,10 @@ export default function Navbar({ onMenuClick }) {
                         <span>Administration</span>
                       </Link>
                     )}
+                    <Link to="/license" className="dropdown-item" onClick={() => setShowDropdown(false)}>
+                      <FiFileText className="w-5 h-5" />
+                      <span>Licence</span>
+                    </Link>
                     <button onClick={handleLogout} className="dropdown-item w-full text-red-400">
                       <FiLogOut className="w-5 h-5" />
                       <span>Déconnexion</span>

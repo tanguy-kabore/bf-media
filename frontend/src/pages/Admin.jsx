@@ -35,13 +35,13 @@ const StatCard = ({ icon: Icon, label, value, subValue, color = 'primary' }) => 
     purple: 'bg-purple-500/10 text-purple-500'
   }
   return (
-    <div className="bg-dark-800 rounded-xl p-4 border border-dark-700">
-      <div className="flex items-center gap-3">
-        <div className={`p-3 rounded-lg ${colors[color]}`}><Icon className="w-5 h-5" /></div>
-        <div>
-          <p className="text-dark-400 text-sm">{label}</p>
-          <p className="text-xl font-bold">{value}</p>
-          {subValue && <p className="text-xs text-dark-500">{subValue}</p>}
+    <div className="bg-dark-800 rounded-xl p-3 sm:p-4 border border-dark-700 overflow-hidden">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className={`p-2 sm:p-3 rounded-lg flex-shrink-0 ${colors[color]}`}><Icon className="w-4 h-4 sm:w-5 sm:h-5" /></div>
+        <div className="min-w-0 flex-1">
+          <p className="text-dark-400 text-xs sm:text-sm truncate">{label}</p>
+          <p className="text-lg sm:text-xl font-bold truncate">{value}</p>
+          {subValue && <p className="text-xs text-dark-500 truncate">{subValue}</p>}
         </div>
       </div>
     </div>
@@ -92,28 +92,28 @@ export default function Admin() {
   return (
     <div className="min-h-screen min-h-dvh bg-dark-950">
       {/* Admin Navbar */}
-      <nav className="fixed top-0 left-0 right-0 h-14 bg-dark-900 border-b border-dark-800 z-50 flex items-center justify-between px-4">
-        <div className="flex items-center gap-4">
+      <nav className="fixed top-0 left-0 right-0 h-14 bg-dark-900 border-b border-dark-800 z-50 flex items-center justify-between px-2 sm:px-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-2 hover:bg-dark-800 rounded-lg">
             <FiMenu className="w-5 h-5" />
           </button>
           <Link to="/" className="flex items-center gap-2">
-            <span className="font-semibold">Admin</span>
+            <span className="font-semibold text-sm sm:text-base">Admin</span>
           </Link>
         </div>
-        <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-2 px-3 py-2 bg-dark-800 hover:bg-dark-700 rounded-lg text-sm">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Link to="/" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-dark-800 hover:bg-dark-700 rounded-lg text-xs sm:text-sm">
             <FiArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Retour au site</span>
+            <span className="hidden sm:inline">Retour</span>
           </Link>
-          <button className="p-2 hover:bg-dark-800 rounded-lg relative">
+          <button className="p-1.5 sm:p-2 hover:bg-dark-800 rounded-lg relative hidden sm:block">
             <FiBell className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2 pl-2 border-l border-dark-700">
-            <div className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center overflow-hidden">
+          <div className="flex items-center gap-1 sm:gap-2 pl-2 border-l border-dark-700">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-dark-700 flex items-center justify-center overflow-hidden text-sm">
               {user.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full object-cover" /> : user.username?.charAt(0).toUpperCase()}
             </div>
-            <button onClick={handleLogout} className="p-2 hover:bg-dark-800 rounded-lg text-red-400" title="Déconnexion">
+            <button onClick={handleLogout} className="p-1.5 sm:p-2 hover:bg-dark-800 rounded-lg text-red-400" title="Déconnexion">
               <FiLogOut className="w-4 h-4" />
             </button>
           </div>
@@ -171,15 +171,15 @@ export default function Admin() {
 
       {/* Mobile Tabs */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-dark-900 border-t border-dark-700 z-40">
-        <div className="flex justify-around py-2">
-          {tabs.slice(0, 5).map(tab => (
+        <div className="flex overflow-x-auto scrollbar-hide py-1 px-1 gap-1">
+          {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center gap-1 p-2 ${activeTab === tab.id ? 'text-primary-500' : 'text-dark-400'}`}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg flex-shrink-0 min-w-[60px] ${activeTab === tab.id ? 'text-primary-500 bg-dark-800' : 'text-dark-400'}`}
             >
-              <tab.icon className="w-5 h-5" />
-              <span className="text-xs">{tab.label}</span>
+              <tab.icon className="w-4 h-4" />
+              <span className="text-[10px] whitespace-nowrap">{tab.label}</span>
             </button>
           ))}
         </div>
