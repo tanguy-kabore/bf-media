@@ -359,10 +359,10 @@ export default function Watch() {
             {user?.id !== video.user_id && (
               <button
                 onClick={handleSubscribe}
-                className={`group flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm transition-all duration-200 ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm transition-all ${
                   isSubscribed 
-                    ? 'bg-dark-700 text-white hover:bg-dark-600' 
-                    : 'bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600 hover:shadow-lg hover:shadow-red-500/25'
+                    ? 'bg-dark-800 text-white hover:bg-dark-700' 
+                    : 'bg-primary-500 text-white hover:bg-primary-600'
                 }`}
               >
                 {isSubscribed ? (
@@ -372,7 +372,7 @@ export default function Watch() {
                   </>
                 ) : (
                   <>
-                    <FiUserPlus className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <FiUserPlus className="w-4 h-4" />
                     <span>S'abonner</span>
                   </>
                 )}
