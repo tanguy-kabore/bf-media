@@ -21,6 +21,7 @@ import Playlist from './pages/Playlist'
 import Admin from './pages/Admin'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import License from './pages/License'
 import NotFound from './pages/NotFound'
 
 function App() {
@@ -57,6 +58,7 @@ function App() {
         <Route path="/channels/manage" element={<ManageChannels />} />
         <Route path="/category/:slug" element={<Category />} />
         <Route path="/playlist/:id" element={<Playlist />} />
+        <Route path="/license" element={<License />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
