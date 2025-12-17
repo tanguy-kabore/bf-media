@@ -149,21 +149,25 @@ router.get('/users', authenticate, isAdmin, asyncHandler(async (req, res) => {
     whereClause += ' AND u.is_active = FALSE';
   }
 
-  const users = await query(`
-    SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.role, 
-           u.is_verified, u.is_active, u.created_at, u.last_login,
-           COALESCE(u.storage_limit, 5368709120) as storage_limit,
-           COALESCE((SELECT SUM(v.file_size) FROM videos v JOIN channels c ON v.channel_id = c.id WHERE c.user_id = u.id), 0) as storage_used,
-           (SELECT COUNT(*) FROM channels WHERE user_id = u.id) as channel_count,
-           (SELECT COUNT(*) FROM videos v JOIN channels c ON v.channel_id = c.id WHERE c.user_id = u.id) as video_count
-    FROM users u WHERE ${whereClause}
-    ORDER BY u.created_at DESC LIMIT ? OFFSET ?
-  `, [...params, parseInt(limit), parseInt(offset)]);
+  try {
+    // Simplified query - calculate storage separately if needed
+    const users = await query(`
+      SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.role, 
+             u.is_verified, u.is_active, u.created_at, u.last_login,
+             COALESCE(u.storage_limit, 5368709120) as storage_limit,
+             COALESCE(u.storage_used, 0) as storage_used
+      FROM users u WHERE ${whereClause}
+      ORDER BY u.created_at DESC LIMIT ? OFFSET ?
+    `, [...params, parseInt(limit), parseInt(offset)]);
 
-  const [countResult] = await query(`SELECT COUNT(*) as total FROM users u WHERE ${whereClause}`, params);
-  const total = countResult?.total || 0;
+    const [countResult] = await query(`SELECT COUNT(*) as total FROM users u WHERE ${whereClause}`, params);
+    const total = countResult?.total || 0;
 
-  res.json({ users, pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / limit) } });
+    res.json({ users, pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / limit) } });
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Erreur lors de la récupération des utilisateurs', details: err.message });
+  }
 }));
 
 // Get single user details

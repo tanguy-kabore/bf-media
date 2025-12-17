@@ -284,6 +284,7 @@ const AdminUsers = () => {
   const [users, setUsers] = useState([])
   const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 1 })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -294,14 +295,15 @@ const AdminUsers = () => {
 
   const fetchUsers = async () => {
     setLoading(true)
+    setError(null)
     try {
       const params = new URLSearchParams({ page: pagination.page, limit: 20, ...(search && { search }), ...(roleFilter && { role: roleFilter }), ...(statusFilter && { status: statusFilter }) })
       const res = await api.get(`/admin/users?${params}`)
-      console.log('Admin users response:', res.data)
       setUsers(res.data.users || [])
       setPagination(res.data.pagination || { page: 1, total: 0, pages: 1 })
     } catch (e) { 
       console.error('Error fetching users:', e)
+      setError(e.response?.data?.error || e.message || 'Erreur de chargement')
       setUsers([])
     }
     finally { setLoading(false) }
@@ -355,12 +357,22 @@ const AdminUsers = () => {
           <option value="">Tous</option><option value="active">Actifs</option><option value="inactive">Inactifs</option>
         </select>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">
+          <p className="font-medium">Erreur: {error}</p>
+          <button onClick={fetchUsers} className="mt-2 text-sm underline">Réessayer</button>
+        </div>
+      )}
+
       {/* Desktop Table */}
       <div className="hidden md:block bg-dark-800 rounded-xl border border-dark-700 overflow-hidden overflow-x-auto">
         <table className="w-full min-w-[600px]">
           <thead className="bg-dark-700/50"><tr><th className="px-4 py-3 text-left text-sm">Utilisateur</th><th className="px-4 py-3 text-left text-sm">Rôle</th><th className="px-4 py-3 text-left text-sm">Statut</th><th className="px-4 py-3 text-left text-sm">Stockage</th><th className="px-4 py-3 text-right text-sm">Actions</th></tr></thead>
           <tbody className="divide-y divide-dark-700">
             {loading ? <tr><td colSpan={5} className="py-8 text-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500 mx-auto"></div></td></tr> :
+            error ? <tr><td colSpan={5} className="py-8 text-center text-red-400">Erreur de chargement</td></tr> :
             users.length === 0 ? <tr><td colSpan={5} className="py-8 text-center text-dark-400">Aucun utilisateur</td></tr> :
             users.map(u => (
               <tr key={u.id} className="hover:bg-dark-700/30">
@@ -393,6 +405,7 @@ const AdminUsers = () => {
       {/* Mobile Cards */}
       <div className="md:hidden space-y-3">
         {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div></div> :
+        error ? <div className="text-center py-8 text-red-400">Erreur de chargement</div> :
         users.length === 0 ? <div className="text-center py-8 text-dark-400">Aucun utilisateur</div> :
         users.map(u => (
           <div key={u.id} className="bg-dark-800 rounded-xl border border-dark-700 p-4">
