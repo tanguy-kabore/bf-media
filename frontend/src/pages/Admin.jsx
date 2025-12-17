@@ -157,7 +157,7 @@ export default function Admin() {
 
         {/* Content */}
         <main className="flex-1 min-w-0 lg:ml-0">
-          <div className="p-4 md:p-6">
+          <div className="p-3 sm:p-4 md:p-6 pb-24 lg:pb-6">
             {activeTab === 'dashboard' && <AdminDashboard />}
             {activeTab === 'users' && <AdminUsers />}
             {activeTab === 'videos' && <AdminVideos />}
@@ -355,8 +355,9 @@ const AdminUsers = () => {
           <option value="">Tous</option><option value="active">Actifs</option><option value="inactive">Inactifs</option>
         </select>
       </div>
-      <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
-        <table className="w-full">
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-dark-800 rounded-xl border border-dark-700 overflow-hidden overflow-x-auto">
+        <table className="w-full min-w-[600px]">
           <thead className="bg-dark-700/50"><tr><th className="px-4 py-3 text-left text-sm">Utilisateur</th><th className="px-4 py-3 text-left text-sm">Rôle</th><th className="px-4 py-3 text-left text-sm">Statut</th><th className="px-4 py-3 text-left text-sm">Stockage</th><th className="px-4 py-3 text-right text-sm">Actions</th></tr></thead>
           <tbody className="divide-y divide-dark-700">
             {loading ? <tr><td colSpan={5} className="py-8 text-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500 mx-auto"></div></td></tr> :
@@ -387,6 +388,40 @@ const AdminUsers = () => {
           </tbody>
         </table>
         {pagination.pages > 1 && <div className="px-4 py-3 border-t border-dark-700 flex justify-between"><span className="text-sm text-dark-400">Page {pagination.page}/{pagination.pages}</span><div className="flex gap-2"><button onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))} disabled={pagination.page === 1} className="px-3 py-1 bg-dark-700 rounded disabled:opacity-50">Préc</button><button onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))} disabled={pagination.page === pagination.pages} className="px-3 py-1 bg-dark-700 rounded disabled:opacity-50">Suiv</button></div></div>}
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div></div> :
+        users.length === 0 ? <div className="text-center py-8 text-dark-400">Aucun utilisateur</div> :
+        users.map(u => (
+          <div key={u.id} className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-dark-600 flex items-center justify-center overflow-hidden">
+                  {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" /> : u.username?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-medium">{u.username}</p>
+                  <p className="text-xs text-dark-400 truncate max-w-[150px]">{u.email}</p>
+                </div>
+              </div>
+              <span className={`px-2 py-1 rounded text-xs ${u.role === 'admin' ? 'bg-red-500/20 text-red-400' : u.role === 'moderator' ? 'bg-purple-500/20 text-purple-400' : 'bg-dark-600'}`}>{u.role}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-0.5 rounded text-xs ${u.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{u.is_active ? 'Actif' : 'Inactif'}</span>
+                <span className="text-dark-400 text-xs">{formatBytes(u.storage_used || 0)}</span>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => { setSelectedUser(u); setShowModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg"><FiEdit className="w-4 h-4" /></button>
+                <button onClick={() => updateUser(u.id, { isActive: !u.is_active })} className={`p-2 hover:bg-dark-600 rounded-lg ${u.is_active ? 'text-green-400' : 'text-red-400'}`}>{u.is_active ? <FiToggleRight className="w-4 h-4" /> : <FiToggleLeft className="w-4 h-4" />}</button>
+                <button onClick={() => deleteUser(u.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"><FiTrash2 className="w-4 h-4" /></button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {pagination.pages > 1 && <div className="flex justify-between items-center pt-2"><span className="text-sm text-dark-400">Page {pagination.page}/{pagination.pages}</span><div className="flex gap-2"><button onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))} disabled={pagination.page === 1} className="px-3 py-1 bg-dark-700 rounded disabled:opacity-50">Préc</button><button onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))} disabled={pagination.page === pagination.pages} className="px-3 py-1 bg-dark-700 rounded disabled:opacity-50">Suiv</button></div></div>}
       </div>
       {showModal && selectedUser && <UserEditModal user={selectedUser} onClose={() => setShowModal(false)} onSave={updateUser} />}
     </div>
@@ -461,7 +496,8 @@ const AdminVideos = () => {
         </select>
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPagination(p => ({ ...p, page: 1 })) }} className="px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg"><option value="">Tous statuts</option><option value="published">Publiées</option><option value="processing">En traitement</option><option value="private">Privées</option><option value="blocked">Bloquées</option></select>
       </div>
-      <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden overflow-x-auto">
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-dark-800 rounded-xl border border-dark-700 overflow-hidden overflow-x-auto">
         <table className="w-full min-w-[700px]">
           <thead className="bg-dark-700/50"><tr><th className="px-4 py-3 text-left text-sm">Vidéo</th><th className="px-4 py-3 text-left text-sm">Chaîne</th><th className="px-4 py-3 text-left text-sm">Propriétaire</th><th className="px-4 py-3 text-left text-sm">Statut</th><th className="px-4 py-3 text-left text-sm">Vues</th><th className="px-4 py-3 text-right text-sm">Actions</th></tr></thead>
           <tbody className="divide-y divide-dark-700">
@@ -480,6 +516,32 @@ const AdminVideos = () => {
           </tbody>
         </table>
         {pagination.pages > 1 && <div className="px-4 py-3 border-t border-dark-700 flex justify-between"><span className="text-sm text-dark-400">Page {pagination.page}/{pagination.pages}</span><div className="flex gap-2"><button onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))} disabled={pagination.page === 1} className="px-3 py-1 bg-dark-700 rounded disabled:opacity-50">Préc</button><button onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))} disabled={pagination.page === pagination.pages} className="px-3 py-1 bg-dark-700 rounded disabled:opacity-50">Suiv</button></div></div>}
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div></div> :
+        videos.length === 0 ? <div className="text-center py-8 text-dark-400">Aucune vidéo</div> :
+        videos.map(v => (
+          <div key={v.id} className="bg-dark-800 rounded-xl border border-dark-700 p-3">
+            <div className="flex gap-3">
+              <div className="w-24 h-14 rounded bg-dark-600 overflow-hidden flex-shrink-0">{v.thumbnail_url && <img src={v.thumbnail_url} className="w-full h-full object-cover" />}</div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{v.title}</p>
+                <p className="text-xs text-dark-400">{v.channel_name}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <select value={v.status} onChange={e => updateVideo(v.id, { status: e.target.value })} className={`px-2 py-0.5 rounded text-xs border-0 ${v.status === 'published' ? 'bg-green-500/20 text-green-400' : v.status === 'blocked' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}><option value="published">Publiée</option><option value="private">Privée</option><option value="blocked">Bloquée</option></select>
+                  <span className="text-xs text-dark-400">{formatNumber(v.view_count)} vues</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Link to={`/watch/${v.id}`} target="_blank" className="p-2 hover:bg-dark-600 rounded-lg"><FiEye className="w-4 h-4" /></Link>
+                <button onClick={() => deleteVideo(v.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"><FiTrash2 className="w-4 h-4" /></button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {pagination.pages > 1 && <div className="flex justify-between items-center pt-2"><span className="text-sm text-dark-400">Page {pagination.page}/{pagination.pages}</span><div className="flex gap-2"><button onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))} disabled={pagination.page === 1} className="px-3 py-1 bg-dark-700 rounded disabled:opacity-50">Préc</button><button onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))} disabled={pagination.page === pagination.pages} className="px-3 py-1 bg-dark-700 rounded disabled:opacity-50">Suiv</button></div></div>}
       </div>
     </div>
   )
@@ -586,8 +648,9 @@ const AdminReports = () => {
         </div>
       )}
 
-      <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
-        <table className="w-full">
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-dark-800 rounded-xl border border-dark-700 overflow-hidden overflow-x-auto">
+        <table className="w-full min-w-[600px]">
           <thead className="bg-dark-700/50">
             <tr>
               <th className="px-4 py-3 text-left text-sm">Contenu</th>
@@ -629,6 +692,28 @@ const AdminReports = () => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div></div> :
+        reports.length === 0 ? <div className="text-center py-8 text-dark-400">Aucun signalement {statusFilter === 'pending' ? 'en attente' : ''}</div> :
+        reports.map(r => (
+          <div key={r.id} className="bg-dark-800 rounded-xl border border-dark-700 p-3" onClick={() => openReportDetails(r)}>
+            <div className="flex gap-3">
+              {r.video_thumbnail && <img src={r.video_thumbnail} alt="" className="w-20 h-12 object-cover rounded flex-shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{r.video_title || 'Contenu supprimé'}</p>
+                <p className="text-xs text-dark-400">{r.channel_name}</p>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="px-2 py-0.5 rounded text-xs bg-red-500/20 text-red-400">{reasonLabels[r.reason] || r.reason}</span>
+                  <span className="text-xs text-dark-500">par {r.reporter_username}</span>
+                </div>
+              </div>
+              <button className="p-2 hover:bg-dark-600 rounded-lg self-center"><FiEye className="w-4 h-4" /></button>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Report Details Modal */}
@@ -830,8 +915,9 @@ const AdminVerifications = () => {
         </select>
       </div>
 
-      <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
-        <table className="w-full">
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-dark-800 rounded-xl border border-dark-700 overflow-hidden overflow-x-auto">
+        <table className="w-full min-w-[700px]">
           <thead className="bg-dark-700/50">
             <tr>
               <th className="px-4 py-3 text-left text-sm">Utilisateur</th>
@@ -890,6 +976,40 @@ const AdminVerifications = () => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div></div> :
+        requests.length === 0 ? <div className="text-center py-8 text-dark-400">Aucune demande</div> :
+        requests.map(r => (
+          <div key={r.id} className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-dark-600 overflow-hidden">
+                  {r.avatar_url ? <img src={r.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center">{r.username?.charAt(0).toUpperCase()}</div>}
+                </div>
+                <div>
+                  <p className="font-medium">{r.display_name || r.username}</p>
+                  <p className="text-xs text-dark-400 truncate max-w-[150px]">{r.email}</p>
+                </div>
+              </div>
+              <span className={`px-2 py-1 rounded text-xs ${r.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : r.status === 'approved' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                {r.status === 'pending' ? 'En attente' : r.status === 'approved' ? 'Approuvée' : 'Rejetée'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-xs bg-dark-600">{r.document_type === 'national_id' ? 'CNI' : 'Passeport'}</span>
+                <span className="text-dark-400 text-xs">{r.full_name}</span>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => setSelectedRequest(r)} className="p-2 hover:bg-dark-600 rounded-lg"><FiEye className="w-4 h-4" /></button>
+                {r.status === 'approved' && <button onClick={() => revokeBadge(r.user_id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"><FiX className="w-4 h-4" /></button>}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Detail Modal */}
@@ -999,8 +1119,9 @@ const AdminAds = () => {
           <span>Nouvelle publicité</span>
         </button>
       </div>
-      <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
-        <table className="w-full">
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-dark-800 rounded-xl border border-dark-700 overflow-hidden overflow-x-auto">
+        <table className="w-full min-w-[600px]">
           <thead className="bg-dark-700/50"><tr><th className="px-4 py-3 text-left text-sm">Titre</th><th className="px-4 py-3 text-left text-sm">Type</th><th className="px-4 py-3 text-left text-sm">Statut</th><th className="px-4 py-3 text-left text-sm">Impressions</th><th className="px-4 py-3 text-left text-sm">Clics</th><th className="px-4 py-3 text-right text-sm">Actions</th></tr></thead>
           <tbody className="divide-y divide-dark-700">
             {loading ? <tr><td colSpan={6} className="py-8 text-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500 mx-auto"></div></td></tr> :
@@ -1017,6 +1138,31 @@ const AdminAds = () => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div></div> :
+        ads.length === 0 ? <div className="text-center py-8 text-dark-400">Aucune publicité</div> :
+        ads.map(a => (
+          <div key={a.id} className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-medium">{a.title}</p>
+              <span className={`px-2 py-1 rounded text-xs ${a.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-dark-600'}`}>{a.status}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-3">
+                <span className="px-2 py-0.5 rounded text-xs bg-dark-600">{a.ad_type}</span>
+                <span className="text-dark-400 text-xs">{formatNumber(a.impressions || 0)} imp.</span>
+                <span className="text-dark-400 text-xs">{formatNumber(a.clicks || 0)} clics</span>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => { setEditingAd(a); setShowModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg"><FiEdit className="w-4 h-4" /></button>
+                <button onClick={() => deleteAd(a.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"><FiTrash2 className="w-4 h-4" /></button>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
       {showModal && <AdModal ad={editingAd} onClose={() => { setShowModal(false); setEditingAd(null) }} onSave={saveAd} />}
     </div>
