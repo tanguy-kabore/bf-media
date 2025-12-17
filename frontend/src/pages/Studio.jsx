@@ -549,40 +549,40 @@ function StudioAnalytics() {
           {/* New vs Returning Viewers */}
           <div className="card p-4">
             <h3 className="font-medium mb-4">Nouveaux vs Fidèles</h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-2">
+            <div className="flex flex-col gap-4">
+              <div className="w-full">
+                <div className="flex items-center justify-between text-sm mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full" />
+                    <span className="w-3 h-3 bg-green-500 rounded-full flex-shrink-0"></span>
                     <span>Nouveaux</span>
                   </div>
-                  <span className="text-dark-400">{formatNumber(analytics?.audience?.newViewers || 0)}</span>
+                  <span className="text-dark-400 font-medium">{formatNumber(analytics?.audience?.newViewers || 0)}</span>
                 </div>
-                <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+                <div className="w-full h-3 bg-dark-700 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-green-500 rounded-full transition-all" 
+                    className="h-full bg-green-500 rounded-full" 
                     style={{ 
-                      width: `${analytics?.audience?.uniqueViewers > 0 
-                        ? ((analytics?.audience?.newViewers / (analytics?.audience?.newViewers + analytics?.audience?.returningViewers)) * 100) 
+                      width: `${(analytics?.audience?.newViewers || 0) + (analytics?.audience?.returningViewers || 0) > 0 
+                        ? ((analytics?.audience?.newViewers / ((analytics?.audience?.newViewers || 0) + (analytics?.audience?.returningViewers || 0))) * 100) 
                         : 50}%` 
                     }}
                   />
                 </div>
               </div>
-              <div>
-                <div className="flex justify-between text-sm mb-2">
+              <div className="w-full">
+                <div className="flex items-center justify-between text-sm mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-purple-500 rounded-full" />
+                    <span className="w-3 h-3 bg-purple-500 rounded-full flex-shrink-0"></span>
                     <span>Fidèles</span>
                   </div>
-                  <span className="text-dark-400">{formatNumber(analytics?.audience?.returningViewers || 0)}</span>
+                  <span className="text-dark-400 font-medium">{formatNumber(analytics?.audience?.returningViewers || 0)}</span>
                 </div>
-                <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+                <div className="w-full h-3 bg-dark-700 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-purple-500 rounded-full transition-all" 
+                    className="h-full bg-purple-500 rounded-full" 
                     style={{ 
-                      width: `${analytics?.audience?.uniqueViewers > 0 
-                        ? ((analytics?.audience?.returningViewers / (analytics?.audience?.newViewers + analytics?.audience?.returningViewers)) * 100) 
+                      width: `${(analytics?.audience?.newViewers || 0) + (analytics?.audience?.returningViewers || 0) > 0 
+                        ? ((analytics?.audience?.returningViewers / ((analytics?.audience?.newViewers || 0) + (analytics?.audience?.returningViewers || 0))) * 100) 
                         : 50}%` 
                     }}
                   />
