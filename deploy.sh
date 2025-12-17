@@ -146,37 +146,37 @@ echo -e "${YELLOW}[6/7] Configuration de Nginx...${NC}"
 cat > /etc/nginx/sites-available/bf-media << 'EOF'
 server {
     listen 80;
-    server_name votre-domaine.com;  # À modifier
-    
-    # Redirection HTTPS (décommenter après installation SSL)
-    # return 301 https://$server_name$request_uri;
+    server_name YOUR_SERVER_NAME;
 
-    # Frontend (fichiers statiques)
+    # ACME challenge (Let’s Encrypt)
+    location ^~ /.well-known/acme-challenge/ {
+        alias /var/lib/letsencrypt/.well-known/acme-challenge/;
+        allow all;
+        default_type "text/plain";
+    }
+
+    # Frontend (React / SPA)
     location / {
         root /var/www/bf-media/frontend/dist;
+        index index.html;
         try_files $uri $uri/ /index.html;
     }
 
     # API Backend
-    location /api {
+    location /api/ {
         proxy_pass http://localhost:5000;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
+
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-        
-        # Timeout pour les uploads de vidéos
+
         proxy_read_timeout 300s;
-        proxy_connect_timeout 300s;
-        proxy_send_timeout 300s;
         client_max_body_size 2G;
     }
 
-    # Fichiers uploadés
+    # Uploads
     location /uploads/ {
         alias /var/www/bf-media/backend/uploads/;
         expires 30d;
