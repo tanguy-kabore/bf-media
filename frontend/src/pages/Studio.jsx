@@ -549,13 +549,16 @@ function StudioAnalytics() {
           {/* New vs Returning Viewers */}
           <div className="card p-4">
             <h3 className="font-medium mb-4">Nouveaux vs Fidèles</h3>
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
+            <div className="space-y-4">
+              <div>
                 <div className="flex justify-between text-sm mb-2">
-                  <span>Nouveaux spectateurs</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full" />
+                    <span>Nouveaux</span>
+                  </div>
                   <span className="text-dark-400">{formatNumber(analytics?.audience?.newViewers || 0)}</span>
                 </div>
-                <div className="h-3 bg-dark-700 rounded-full overflow-hidden">
+                <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-green-500 rounded-full transition-all" 
                     style={{ 
@@ -566,12 +569,15 @@ function StudioAnalytics() {
                   />
                 </div>
               </div>
-              <div className="flex-1">
+              <div>
                 <div className="flex justify-between text-sm mb-2">
-                  <span>Spectateurs fidèles</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-purple-500 rounded-full" />
+                    <span>Fidèles</span>
+                  </div>
                   <span className="text-dark-400">{formatNumber(analytics?.audience?.returningViewers || 0)}</span>
                 </div>
-                <div className="h-3 bg-dark-700 rounded-full overflow-hidden">
+                <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-purple-500 rounded-full transition-all" 
                     style={{ 

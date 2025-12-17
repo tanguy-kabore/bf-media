@@ -461,6 +461,26 @@ const parseUserAgent = (ua) => {
   return { browser, os, deviceType };
 };
 
+// Get country from IP (using free API)
+const getCountryFromIP = async (ip) => {
+  try {
+    // Skip for localhost/private IPs
+    if (!ip || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
+      return null;
+    }
+    // Clean IP (remove ::ffff: prefix)
+    const cleanIP = ip.replace('::ffff:', '');
+    const response = await fetch(`http://ip-api.com/json/${cleanIP}?fields=country`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.country || null;
+    }
+  } catch (err) {
+    console.error('IP geolocation error:', err.message);
+  }
+  return null;
+};
+
 // Record view
 router.post('/:id/view', optionalAuth, asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -470,6 +490,9 @@ router.post('/:id/view', optionalAuth, asyncHandler(async (req, res) => {
   
   // Parse user agent for browser, OS, and device type
   const { browser, os, deviceType } = parseUserAgent(userAgent);
+  
+  // Get country from IP (non-blocking)
+  const country = await getCountryFromIP(req.ip);
   
   // Check if returning viewer (has viewed any video before)
   let isReturning = false;
@@ -485,8 +508,8 @@ router.post('/:id/view', optionalAuth, asyncHandler(async (req, res) => {
 
   // Record detailed view analytics with all data
   await query(`
-    INSERT INTO video_views (video_id, user_id, session_id, ip_address, user_agent, device_type, browser, os, is_returning, referrer, watch_duration, quality_watched)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO video_views (video_id, user_id, session_id, ip_address, user_agent, device_type, browser, os, is_returning, referrer, watch_duration, quality_watched, country)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [
     id, 
     req.user?.id || null, 
@@ -499,7 +522,8 @@ router.post('/:id/view', optionalAuth, asyncHandler(async (req, res) => {
     isReturning,
     req.headers['referer'] || null,
     watchDuration || 0, 
-    quality || 'auto'
+    quality || 'auto',
+    country
   ]);
 
   // Update channel total views
