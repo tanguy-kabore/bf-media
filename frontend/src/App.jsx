@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
 import useAuthStore from './store/authStore'
+import usePlatformStore from './store/platformStore'
 import Layout from './components/Layout'
 import Home from './pages/Home'
 import Watch from './pages/Watch'
@@ -17,16 +18,21 @@ import ManageChannels from './pages/ManageChannels'
 import Category from './pages/Category'
 import Explore from './pages/Explore'
 import Playlist from './pages/Playlist'
+import Admin from './pages/Admin'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import NotFound from './pages/NotFound'
 
 function App() {
   const { fetchUser, token } = useAuthStore()
+  const { fetchSettings, initialized } = usePlatformStore()
 
   useEffect(() => {
     if (token) {
       fetchUser()
+    }
+    if (!initialized) {
+      fetchSettings()
     }
   }, [])
 
@@ -34,6 +40,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/admin/*" element={<Admin />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/explore" element={<Explore />} />

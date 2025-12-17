@@ -112,6 +112,28 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Public platform settings endpoint (accessible without auth)
+app.get('/api/platform/settings', async (req, res) => {
+  try {
+    const { query } = require('./config/database');
+    const settings = await query('SELECT setting_key, setting_value, setting_type FROM platform_settings');
+    const publicSettings = {};
+    const publicKeys = ['platform_name', 'platform_description', 'maintenance_mode', 'registration_enabled', 'ads_enabled'];
+    settings.forEach(s => {
+      if (publicKeys.includes(s.setting_key)) {
+        if (s.setting_type === 'boolean') {
+          publicSettings[s.setting_key] = s.setting_value === 'true';
+        } else {
+          publicSettings[s.setting_key] = s.setting_value;
+        }
+      }
+    });
+    res.json(publicSettings);
+  } catch (error) {
+    res.json({ platform_name: 'BF Media', maintenance_mode: false, registration_enabled: true });
+  }
+});
+
 // Socket.io connection handling
 io.use(authenticateSocket);
 

@@ -34,6 +34,7 @@ export default function Watch() {
   const [userPlaylists, setUserPlaylists] = useState([])
   const [loadingPlaylists, setLoadingPlaylists] = useState(false)
   const [videoInPlaylists, setVideoInPlaylists] = useState([])
+  const [showReportModal, setShowReportModal] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -416,6 +417,10 @@ export default function Watch() {
               <FiList className="w-4 h-4" />
               <span className="hidden sm:inline">Playlist</span>
             </button>
+            <button onClick={() => isAuthenticated ? setShowReportModal(true) : toast.error('Connectez-vous pour signaler')} className="btn btn-secondary flex-shrink-0 text-sm text-red-400 hover:text-red-300">
+              <FiFlag className="w-4 h-4" />
+              <span className="hidden sm:inline">Signaler</span>
+            </button>
           </div>
         </div>
 
@@ -618,6 +623,104 @@ export default function Watch() {
           </div>
         </div>
       )}
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <ReportModal 
+          videoId={id} 
+          onClose={() => setShowReportModal(false)} 
+        />
+      )}
     </>
+  )
+}
+
+// Report Modal Component
+const ReportModal = ({ videoId, onClose }) => {
+  const [reason, setReason] = useState('')
+  const [description, setDescription] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const reasons = [
+    { value: 'spam', label: 'Spam ou contenu trompeur' },
+    { value: 'harassment', label: 'Harcèlement ou intimidation' },
+    { value: 'hate_speech', label: 'Discours haineux' },
+    { value: 'violence', label: 'Violence ou contenu choquant' },
+    { value: 'nudity', label: 'Nudité ou contenu sexuel' },
+    { value: 'copyright', label: 'Violation des droits d\'auteur' },
+    { value: 'misinformation', label: 'Désinformation' },
+    { value: 'other', label: 'Autre' }
+  ]
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!reason) {
+      toast.error('Veuillez sélectionner une raison')
+      return
+    }
+    setLoading(true)
+    try {
+      await api.post(`/videos/${videoId}/report`, { reason, description })
+      toast.success('Signalement envoyé avec succès')
+      onClose()
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Erreur lors du signalement')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-dark-900 rounded-xl w-full max-w-md border border-dark-700">
+        <div className="flex items-center justify-between p-4 border-b border-dark-700">
+          <h3 className="font-semibold flex items-center gap-2">
+            <FiFlag className="w-5 h-5 text-red-400" />
+            Signaler cette vidéo
+          </h3>
+          <button onClick={onClose} className="p-1 hover:bg-dark-700 rounded">
+            <FiX className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Raison du signalement *</label>
+            <div className="space-y-2">
+              {reasons.map(r => (
+                <label key={r.value} className="flex items-center gap-3 p-2 rounded-lg hover:bg-dark-800 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="reason"
+                    value={r.value}
+                    checked={reason === r.value}
+                    onChange={(e) => setReason(e.target.value)}
+                    className="w-4 h-4 text-primary-500"
+                  />
+                  <span className="text-sm">{r.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Description (optionnel)</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Décrivez le problème..."
+              rows={3}
+              className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg resize-none"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 py-2 bg-dark-700 hover:bg-dark-600 rounded-lg transition-colors">
+              Annuler
+            </button>
+            <button type="submit" disabled={loading || !reason} className="flex-1 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50">
+              {loading ? 'Envoi...' : 'Signaler'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   )
 }

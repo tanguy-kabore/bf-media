@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FiMenu, FiSearch, FiBell, FiVideo, FiUser, FiLogOut, FiSettings, FiChevronDown, FiPlus, FiLayers, FiArrowLeft, FiX } from 'react-icons/fi'
+import { FiMenu, FiSearch, FiBell, FiVideo, FiUser, FiLogOut, FiSettings, FiChevronDown, FiPlus, FiLayers, FiArrowLeft, FiX, FiShield } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
+import usePlatformStore from '../store/platformStore'
 
 export default function Navbar({ onMenuClick }) {
   const navigate = useNavigate()
   const { user, channel, channels, isAuthenticated, logout, fetchChannels, switchChannel } = useAuthStore()
+  const platformName = usePlatformStore(state => state.getPlatformName())
   const [searchQuery, setSearchQuery] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
@@ -78,7 +80,7 @@ export default function Navbar({ onMenuClick }) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Rechercher sur Tipoko..."
+                placeholder={`Rechercher sur ${platformName}...`}
                 className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-full focus:outline-none focus:border-primary-500 text-base"
                 autoFocus
               />
@@ -108,7 +110,7 @@ export default function Navbar({ onMenuClick }) {
               <FiMenu className="w-5 h-5" />
             </button>
             <Link to="/" className="flex items-center flex-shrink-0">
-              <span className="text-lg sm:text-xl font-bold text-white leading-none">TIPOKO</span>
+              <span className="text-lg sm:text-xl font-bold text-white leading-none">{platformName.toUpperCase()}</span>
             </Link>
           </div>
 
@@ -266,6 +268,12 @@ export default function Navbar({ onMenuClick }) {
                       <FiSettings className="w-5 h-5" />
                       <span>Paramètres</span>
                     </Link>
+                    {user?.role === 'admin' && (
+                      <Link to="/admin" className="dropdown-item text-primary-400" onClick={() => setShowDropdown(false)}>
+                        <FiShield className="w-5 h-5" />
+                        <span>Administration</span>
+                      </Link>
+                    )}
                     <button onClick={handleLogout} className="dropdown-item w-full text-red-400">
                       <FiLogOut className="w-5 h-5" />
                       <span>Déconnexion</span>

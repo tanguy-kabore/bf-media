@@ -537,6 +537,41 @@ router.post('/:id/view', optionalAuth, asyncHandler(async (req, res) => {
   res.json({ success: true });
 }));
 
+// Report a video
+router.post('/:id/report', authenticate, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason, description } = req.body;
+
+  // Validate reason
+  const validReasons = ['spam', 'harassment', 'hate_speech', 'violence', 'nudity', 'copyright', 'misinformation', 'other'];
+  if (!reason || !validReasons.includes(reason)) {
+    return res.status(400).json({ error: 'Raison de signalement invalide' });
+  }
+
+  // Check if video exists
+  const [video] = await query('SELECT id FROM videos WHERE id = ?', [id]);
+  if (!video) {
+    return res.status(404).json({ error: 'Vidéo non trouvée' });
+  }
+
+  // Check if user already reported this video
+  const [existingReport] = await query(
+    'SELECT id FROM reports WHERE reporter_id = ? AND content_type = ? AND content_id = ? AND status = ?',
+    [req.user.id, 'video', id, 'pending']
+  );
+  if (existingReport) {
+    return res.status(400).json({ error: 'Vous avez déjà signalé cette vidéo' });
+  }
+
+  const reportId = uuidv4();
+  await query(
+    'INSERT INTO reports (id, reporter_id, content_type, content_id, reason, description) VALUES (?, ?, ?, ?, ?, ?)',
+    [reportId, req.user.id, 'video', id, reason, description || null]
+  );
+
+  res.status(201).json({ message: 'Signalement envoyé avec succès' });
+}));
+
 // Get related videos
 router.get('/:id/related', asyncHandler(async (req, res) => {
   const { id } = req.params;
