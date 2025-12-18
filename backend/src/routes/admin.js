@@ -170,9 +170,11 @@ router.get('/users', authenticate, isAdmin, asyncHandler(async (req, res) => {
       ORDER BY u.created_at DESC LIMIT ? OFFSET ?
     `, [...params, parseInt(limit), parseInt(offset)]);
 
-    // Add default storage limit
+    // Add default storage limit and ensure numbers are properly converted
     const usersWithStorage = users.map(u => ({
       ...u,
+      storage_used: Number(u.storage_used) || 0,
+      video_count: Number(u.video_count) || 0,
       storage_limit: 5368709120
     }));
 
