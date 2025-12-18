@@ -361,66 +361,76 @@ router.get('/dashboard', authenticate, asyncHandler(async (req, res) => {
   console.log('Parsed storage - used:', actualStorageUsed, 'count:', videoCount, 'limit:', storageLimit);
   
   // Get channels for other queries
-  const channels = await query('SELECT id FROM channels WHERE user_id = ?', [userId]);
+  let channels = [];
+  try {
+    channels = await query('SELECT id FROM channels WHERE user_id = ?', [userId]);
+  } catch (e) {
+    console.error('Error fetching channels:', e.message);
+  }
   
   // Use first channel for other queries
   const channel = channels[0] || null;
 
   // Get reported videos for this user's channel
   let reportedVideos = [];
-  if (channel) {
-    reportedVideos = await query(`
-      SELECT r.id, r.reason, r.status, r.created_at, r.action_taken,
-             v.id as video_id, v.title as video_title, v.thumbnail_url
-      FROM reports r
-      JOIN videos v ON r.content_id = v.id AND r.content_type = 'video'
-      WHERE v.channel_id = ?
-      ORDER BY r.created_at DESC
-      LIMIT 10
-    `, [channel.id]);
-  }
-
-  // Count reports by status
   let reportStats = { pending: 0, reviewing: 0, resolved: 0, dismissed: 0 };
-  if (channel) {
-    const reportCounts = await query(`
-      SELECT r.status, COUNT(*) as count
-      FROM reports r
-      JOIN videos v ON r.content_id = v.id AND r.content_type = 'video'
-      WHERE v.channel_id = ?
-      GROUP BY r.status
-    `, [channel.id]);
-    reportCounts.forEach(r => { reportStats[r.status] = r.count; });
-  }
-
-  // Get recent activity
   let recentActivity = [];
+
   if (channel) {
-    // Recent comments on user's videos
-    const recentComments = await query(`
-      SELECT 'comment' as type, c.created_at, c.content as text, 
-             u.username, v.title as video_title, v.id as video_id
-      FROM comments c
-      JOIN videos v ON c.video_id = v.id
-      JOIN users u ON c.user_id = u.id
-      WHERE v.channel_id = ? AND c.user_id != ?
-      ORDER BY c.created_at DESC
-      LIMIT 5
-    `, [channel.id, userId]);
+    try {
+      reportedVideos = await query(`
+        SELECT r.id, r.reason, r.status, r.created_at, r.action_taken,
+               v.id as video_id, v.title as video_title, v.thumbnail_url
+        FROM reports r
+        JOIN videos v ON r.content_id = v.id AND r.content_type = 'video'
+        WHERE v.channel_id = ?
+        ORDER BY r.created_at DESC
+        LIMIT 10
+      `, [channel.id]);
+    } catch (e) {
+      console.error('Error fetching reports:', e.message);
+    }
 
-    // Recent subscribers
-    const recentSubs = await query(`
-      SELECT 'subscription' as type, s.created_at, u.username
-      FROM subscriptions s
-      JOIN users u ON s.user_id = u.id
-      WHERE s.channel_id = ?
-      ORDER BY s.created_at DESC
-      LIMIT 5
-    `, [channel.id]);
+    try {
+      const reportCounts = await query(`
+        SELECT r.status, COUNT(*) as count
+        FROM reports r
+        JOIN videos v ON r.content_id = v.id AND r.content_type = 'video'
+        WHERE v.channel_id = ?
+        GROUP BY r.status
+      `, [channel.id]);
+      reportCounts.forEach(r => { reportStats[r.status] = r.count; });
+    } catch (e) {
+      console.error('Error fetching report stats:', e.message);
+    }
 
-    recentActivity = [...recentComments, ...recentSubs]
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 10);
+    try {
+      const recentComments = await query(`
+        SELECT 'comment' as type, c.created_at, c.content as text, 
+               u.username, v.title as video_title, v.id as video_id
+        FROM comments c
+        JOIN videos v ON c.video_id = v.id
+        JOIN users u ON c.user_id = u.id
+        WHERE v.channel_id = ? AND c.user_id != ?
+        ORDER BY c.created_at DESC
+        LIMIT 5
+      `, [channel.id, userId]);
+
+      const recentSubs = await query(`
+        SELECT 'subscription' as type, s.created_at, u.username
+        FROM subscriptions s
+        JOIN users u ON s.user_id = u.id
+        WHERE s.channel_id = ?
+        ORDER BY s.created_at DESC
+        LIMIT 5
+      `, [channel.id]);
+
+      recentActivity = [...recentComments, ...recentSubs]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 10);
+    } catch (e) {
+      console.error('Error fetching activity:', e.message);
+    }
   }
 
   res.json({
