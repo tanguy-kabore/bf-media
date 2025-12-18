@@ -110,8 +110,8 @@ export default function Navbar({ onMenuClick }) {
               <FiMenu className="w-5 h-5" />
             </button>
             <Link to="/" className="flex items-center gap-1.5 flex-shrink-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-                <FiPlay className="w-4 h-4 sm:w-5 sm:h-5 text-white fill-white" />
+              <div className="w-5 h-5 bg-primary-500 rounded flex items-center justify-center">
+                <FiPlay className="w-3 h-3 text-white fill-white" />
               </div>
               <span className="text-lg sm:text-xl font-bold text-white leading-none">{platformName.toUpperCase()}</span>
             </Link>
@@ -294,7 +294,7 @@ export default function Navbar({ onMenuClick }) {
               to="/login" 
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-medium rounded-full shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-all duration-300 text-sm"
             >
-              <FiUser className="w-4 h-4" />
+              <FiUser className="w-5 h-5" />
               <span>Connexion</span>
             </Link>
           )}
