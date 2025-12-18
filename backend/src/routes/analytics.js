@@ -349,18 +349,25 @@ router.get('/dashboard', authenticate, asyncHandler(async (req, res) => {
   const channels = await query('SELECT id FROM channels WHERE user_id = ?', [userId]);
   const channelIds = channels.map(c => c.id);
   
+  console.log('Dashboard debug - userId:', userId);
+  console.log('Dashboard debug - channels:', channels);
+  console.log('Dashboard debug - channelIds:', channelIds);
+  
   // Calculate actual storage used from ALL user's videos across all channels
   let actualStorageUsed = 0;
   let videoCount = 0;
   
   if (channelIds.length > 0) {
     const placeholders = channelIds.map(() => '?').join(',');
-    const [storageCalc] = await query(`
+    const storageResult = await query(`
       SELECT COALESCE(SUM(file_size), 0) as total_size, COUNT(*) as count
       FROM videos WHERE channel_id IN (${placeholders})
     `, channelIds);
+    console.log('Dashboard debug - storageResult:', storageResult);
+    const storageCalc = storageResult[0] || {};
     actualStorageUsed = Number(storageCalc?.total_size) || 0;
     videoCount = Number(storageCalc?.count) || 0;
+    console.log('Dashboard debug - actualStorageUsed:', actualStorageUsed, 'videoCount:', videoCount);
   }
   
   // Use first channel for other queries
