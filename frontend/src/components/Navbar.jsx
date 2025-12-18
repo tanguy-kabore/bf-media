@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FiMenu, FiSearch, FiBell, FiVideo, FiUser, FiLogOut, FiSettings, FiChevronDown, FiPlus, FiLayers, FiArrowLeft, FiX, FiShield, FiFileText } from 'react-icons/fi'
+import { FiMenu, FiSearch, FiBell, FiVideo, FiUser, FiLogOut, FiSettings, FiChevronDown, FiPlus, FiLayers, FiArrowLeft, FiX, FiShield, FiFileText, FiPlay } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
 import usePlatformStore from '../store/platformStore'
 
@@ -109,7 +109,10 @@ export default function Navbar({ onMenuClick }) {
             <button onClick={onMenuClick} className="p-2 hover:bg-dark-800 rounded-full flex-shrink-0 flex items-center justify-center">
               <FiMenu className="w-5 h-5" />
             </button>
-            <Link to="/" className="flex items-center flex-shrink-0">
+            <Link to="/" className="flex items-center gap-1.5 flex-shrink-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary-500 rounded-lg flex items-center justify-center">
+                <FiPlay className="w-4 h-4 sm:w-5 sm:h-5 text-white fill-white" />
+              </div>
               <span className="text-lg sm:text-xl font-bold text-white leading-none">{platformName.toUpperCase()}</span>
             </Link>
           </div>
@@ -287,7 +290,10 @@ export default function Navbar({ onMenuClick }) {
               </div>
             </>
           ) : (
-            <Link to="/login" className="btn btn-primary">
+            <Link 
+              to="/login" 
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-medium rounded-full shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-all duration-300 text-sm"
+            >
               <FiUser className="w-4 h-4" />
               <span>Connexion</span>
             </Link>
