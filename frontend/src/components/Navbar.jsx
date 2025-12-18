@@ -292,7 +292,7 @@ export default function Navbar({ onMenuClick }) {
           ) : (
             <Link 
               to="/login" 
-              className="p-2 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-full shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:scale-105 transition-all duration-300"
+              className="p-2 hover:bg-dark-800 rounded-full transition-colors"
               title="Connexion"
             >
               <FiUser className="w-5 h-5" />
