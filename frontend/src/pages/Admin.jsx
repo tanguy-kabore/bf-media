@@ -382,18 +382,20 @@ const AdminUsers = () => {
                 <td className="px-4 py-3 text-sm text-dark-400">{formatBytes(u.storage_used || 0)} / {formatBytes(u.storage_limit || 5368709120)}</td>
                 <td className="px-4 py-3"><div className="flex justify-end gap-2">
                   <button onClick={() => { setSelectedUser(u); setShowModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg" title="Modifier"><FiEdit className="w-4 h-4" /></button>
-                  <button 
-                    onClick={() => updateUser(u.id, { isActive: !u.is_active })} 
-                    disabled={u.role === 'admin' && u.is_active && adminCount <= 1}
-                    className={`p-2 hover:bg-dark-600 rounded-lg ${u.is_active ? 'text-green-400' : 'text-red-400'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                    title={u.role === 'admin' && u.is_active && adminCount <= 1 ? 'Dernier admin' : (u.is_active ? 'Désactiver' : 'Activer')}
-                  >{u.is_active ? <FiToggleRight className="w-5 h-5" /> : <FiToggleLeft className="w-5 h-5" />}</button>
-                  <button 
-                    onClick={() => deleteUser(u.id)} 
-                    disabled={u.role === 'admin' && adminCount <= 1}
-                    className="p-2 hover:bg-red-500/20 rounded-lg text-red-400 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title={u.role === 'admin' && adminCount <= 1 ? 'Dernier admin' : 'Supprimer'}
-                  ><FiTrash2 className="w-4 h-4" /></button>
+                  {u.role !== 'admin' && (
+                    <>
+                      <button 
+                        onClick={() => updateUser(u.id, { isActive: !u.is_active })} 
+                        className={`p-2 hover:bg-dark-600 rounded-lg ${u.is_active ? 'text-green-400' : 'text-red-400'}`}
+                        title={u.is_active ? 'Désactiver' : 'Activer'}
+                      >{u.is_active ? <FiToggleRight className="w-5 h-5" /> : <FiToggleLeft className="w-5 h-5" />}</button>
+                      <button 
+                        onClick={() => deleteUser(u.id)} 
+                        className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"
+                        title="Supprimer"
+                      ><FiTrash2 className="w-4 h-4" /></button>
+                    </>
+                  )}
                 </div></td>
               </tr>
             ))}
@@ -428,8 +430,12 @@ const AdminUsers = () => {
               </div>
               <div className="flex gap-1">
                 <button onClick={() => { setSelectedUser(u); setShowModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg"><FiEdit className="w-4 h-4" /></button>
-                <button onClick={() => updateUser(u.id, { isActive: !u.is_active })} className={`p-2 hover:bg-dark-600 rounded-lg ${u.is_active ? 'text-green-400' : 'text-red-400'}`}>{u.is_active ? <FiToggleRight className="w-4 h-4" /> : <FiToggleLeft className="w-4 h-4" />}</button>
-                <button onClick={() => deleteUser(u.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"><FiTrash2 className="w-4 h-4" /></button>
+                {u.role !== 'admin' && (
+                  <>
+                    <button onClick={() => updateUser(u.id, { isActive: !u.is_active })} className={`p-2 hover:bg-dark-600 rounded-lg ${u.is_active ? 'text-green-400' : 'text-red-400'}`}>{u.is_active ? <FiToggleRight className="w-4 h-4" /> : <FiToggleLeft className="w-4 h-4" />}</button>
+                    <button onClick={() => deleteUser(u.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"><FiTrash2 className="w-4 h-4" /></button>
+                  </>
+                )}
               </div>
             </div>
           </div>

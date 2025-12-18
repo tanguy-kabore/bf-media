@@ -150,19 +150,30 @@ router.get('/users', authenticate, isAdmin, asyncHandler(async (req, res) => {
   }
 
   try {
-    // Basic query without optional columns
+    // Query with storage calculation from videos
     const users = await query(`
       SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.role, 
-             u.is_verified, u.is_active, u.created_at, u.last_login
+             u.is_verified, u.is_active, u.created_at, u.last_login,
+             COALESCE((
+               SELECT SUM(v.file_size) 
+               FROM videos v 
+               JOIN channels c ON v.channel_id = c.id 
+               WHERE c.user_id = u.id
+             ), 0) as storage_used,
+             COALESCE((
+               SELECT COUNT(*) 
+               FROM videos v 
+               JOIN channels c ON v.channel_id = c.id 
+               WHERE c.user_id = u.id
+             ), 0) as video_count
       FROM users u WHERE ${whereClause}
       ORDER BY u.created_at DESC LIMIT ? OFFSET ?
     `, [...params, parseInt(limit), parseInt(offset)]);
 
-    // Add default storage values
+    // Add default storage limit
     const usersWithStorage = users.map(u => ({
       ...u,
-      storage_limit: 5368709120,
-      storage_used: 0
+      storage_limit: 5368709120
     }));
 
     const [countResult] = await query(`SELECT COUNT(*) as total FROM users u WHERE ${whereClause}`, params);
@@ -212,6 +223,12 @@ router.patch('/users/:id', authenticate, isAdmin, asyncHandler(async (req, res) 
   const { id } = req.params;
   const { role, isActive, isVerified, storageLimit } = req.body;
 
+  // Check if target user is admin - prevent deactivating admins
+  const [targetUser] = await query('SELECT role FROM users WHERE id = ?', [id]);
+  if (targetUser?.role === 'admin' && isActive === false) {
+    return res.status(403).json({ error: 'Impossible de désactiver un administrateur' });
+  }
+
   const updates = [];
   const params = [];
 
@@ -249,6 +266,12 @@ router.delete('/users/:id', authenticate, isAdmin, asyncHandler(async (req, res)
   // Don't allow deleting yourself
   if (id === req.user.id) {
     return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
+  }
+
+  // Check if target user is admin - prevent deleting admins
+  const [targetUser] = await query('SELECT role FROM users WHERE id = ?', [id]);
+  if (targetUser?.role === 'admin') {
+    return res.status(403).json({ error: 'Impossible de supprimer un administrateur' });
   }
 
   await query('DELETE FROM users WHERE id = ?', [id]);
