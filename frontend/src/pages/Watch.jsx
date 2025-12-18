@@ -327,7 +327,7 @@ export default function Watch() {
   return (
     <>
       {/* Video player - fixed on mobile, normal on desktop */}
-      <div className="fixed sm:static top-14 left-0 right-0 z-40 sm:z-0 bg-black sm:bg-transparent -mx-3 sm:mx-0">
+      <div className="fixed sm:static top-14 left-0 right-0 z-20 sm:z-0 bg-black sm:bg-transparent -mx-3 sm:mx-0">
         <div className="w-full sm:rounded-xl overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)' }}>
           <video
             ref={videoRef}

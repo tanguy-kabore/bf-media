@@ -72,12 +72,12 @@ export default function Sidebar({ collapsed, isOpen, isMobile, onClose }) {
       {/* Mobile overlay */}
       {isMobile && isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-30" 
+          className="fixed inset-0 bg-black/50 z-40" 
           onClick={onClose}
         />
       )}
       <aside 
-        className={`fixed left-0 top-14 bottom-0 bg-dark-950 border-r border-dark-800 overflow-y-auto transition-all duration-300 z-40 ${
+        className={`fixed left-0 top-14 bottom-0 bg-dark-950 border-r border-dark-800 overflow-y-auto transition-all duration-300 z-50 ${
           isMobile ? 'w-64' : (collapsed ? 'w-20' : 'w-60')
         }`}
       >
