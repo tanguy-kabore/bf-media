@@ -392,17 +392,18 @@ export default function Watch() {
             <div className="flex items-center bg-dark-800 rounded-full flex-shrink-0">
               <button
                 onClick={() => handleReaction('like')}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-l-full hover:bg-dark-700 ${userReaction === 'like' ? 'text-primary-400' : ''}`}
+                className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-l-full hover:bg-dark-700 ${userReaction === 'like' ? 'text-primary-400' : ''}`}
               >
-                <FiThumbsUp className={userReaction === 'like' ? 'fill-current' : ''} />
+                <FiThumbsUp className={`w-4 h-4 ${userReaction === 'like' ? 'fill-current' : ''}`} />
                 <span className="text-sm">{formatViews(video.like_count)}</span>
               </button>
               <div className="w-px h-6 bg-dark-600" />
               <button
                 onClick={() => handleReaction('dislike')}
-                className={`px-3 sm:px-4 py-2 rounded-r-full hover:bg-dark-700 ${userReaction === 'dislike' ? 'text-primary-400' : ''}`}
+                className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-r-full hover:bg-dark-700 ${userReaction === 'dislike' ? 'text-primary-400' : ''}`}
               >
-                <FiThumbsDown className={userReaction === 'dislike' ? 'fill-current' : ''} />
+                <FiThumbsDown className={`w-4 h-4 ${userReaction === 'dislike' ? 'fill-current' : ''}`} />
+                {video.dislike_count > 0 && <span className="text-sm">{formatViews(video.dislike_count)}</span>}
               </button>
             </div>
             <button onClick={handleShare} className="btn btn-secondary flex-shrink-0 text-sm">
@@ -671,18 +672,18 @@ const ReportModal = ({ videoId, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-dark-900 rounded-xl w-full max-w-md border border-dark-700">
-        <div className="flex items-center justify-between p-4 border-b border-dark-700">
-          <h3 className="font-semibold flex items-center gap-2">
-            <FiFlag className="w-5 h-5 text-red-400" />
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-dark-900 rounded-xl w-full max-w-md border border-dark-700 max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-dark-700 flex-shrink-0">
+          <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
+            <FiFlag className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
             Signaler cette vidéo
           </h3>
           <button onClick={onClose} className="p-1 hover:bg-dark-700 rounded">
             <FiX className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="p-3 sm:p-4 space-y-4 overflow-y-auto flex-1">
           <div>
             <label className="block text-sm font-medium mb-2">Raison du signalement *</label>
             <div className="space-y-2">
@@ -711,11 +712,11 @@ const ReportModal = ({ videoId, onClose }) => {
               className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg resize-none"
             />
           </div>
-          <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="flex-1 py-2 bg-dark-700 hover:bg-dark-600 rounded-lg transition-colors">
+          <div className="flex gap-3 flex-shrink-0 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-dark-700 hover:bg-dark-600 rounded-lg transition-colors text-sm sm:text-base">
               Annuler
             </button>
-            <button type="submit" disabled={loading || !reason} className="flex-1 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50">
+            <button type="submit" disabled={loading || !reason} className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50 text-sm sm:text-base">
               {loading ? 'Envoi...' : 'Signaler'}
             </button>
           </div>

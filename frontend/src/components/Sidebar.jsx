@@ -68,11 +68,19 @@ export default function Sidebar({ collapsed, isOpen, isMobile, onClose }) {
   }
 
   return (
-    <aside 
-      className={`fixed left-0 top-14 bottom-0 bg-dark-950 border-r border-dark-800 overflow-y-auto transition-all duration-300 z-40 ${
-        isMobile ? 'w-64' : (collapsed ? 'w-20' : 'w-60')
-      }`}
-    >
+    <>
+      {/* Mobile overlay */}
+      {isMobile && isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30" 
+          onClick={onClose}
+        />
+      )}
+      <aside 
+        className={`fixed left-0 top-14 bottom-0 bg-dark-950 border-r border-dark-800 overflow-y-auto transition-all duration-300 z-40 ${
+          isMobile ? 'w-64' : (collapsed ? 'w-20' : 'w-60')
+        }`}
+      >
       <div className="py-3 px-3">
         <div className="space-y-1">
           {renderLinks(mainLinks)}
@@ -127,5 +135,6 @@ export default function Sidebar({ collapsed, isOpen, isMobile, onClose }) {
         )}
       </div>
     </aside>
+    </>
   )
 }
