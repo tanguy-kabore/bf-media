@@ -292,10 +292,10 @@ export default function Navbar({ onMenuClick }) {
           ) : (
             <Link 
               to="/login" 
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-medium rounded-full shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-all duration-300 text-sm"
+              className="p-2 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-full shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:scale-105 transition-all duration-300"
+              title="Connexion"
             >
               <FiUser className="w-5 h-5" />
-              <span>Connexion</span>
             </Link>
           )}
         </div>
