@@ -147,11 +147,11 @@ export default function Navbar({ onMenuClick }) {
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             {/* Mobile Search Button */}
             <button 
               onClick={() => setIsSearchOpen(true)}
-              className="p-2 hover:bg-dark-800 rounded-full sm:hidden"
+              className="p-2 hover:bg-dark-800 rounded-full sm:hidden flex items-center justify-center"
             >
               <FiSearch className="w-5 h-5" />
             </button>
@@ -292,7 +292,7 @@ export default function Navbar({ onMenuClick }) {
           ) : (
             <Link 
               to="/login" 
-              className="p-2 hover:bg-dark-800 rounded-full transition-colors"
+              className="p-2 hover:bg-dark-800 rounded-full transition-colors flex items-center justify-center"
               title="Connexion"
             >
               <FiUser className="w-5 h-5" />
