@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { FiThumbsUp, FiThumbsDown, FiShare2, FiBookmark, FiFlag, FiMoreHorizontal, FiList, FiPlus, FiCheck, FiX, FiBell, FiUserPlus } from 'react-icons/fi'
+import { FiThumbsUp, FiThumbsDown, FiShare2, FiBookmark, FiFlag, FiMoreHorizontal, FiList, FiPlus, FiCheck, FiX, FiBell, FiUserPlus, FiCheckCircle } from 'react-icons/fi'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import api from '../services/api'
@@ -348,7 +348,7 @@ export default function Watch() {
             poster={video.thumbnail_url}
             controls
             autoPlay
-            className="w-full aspect-video object-contain"
+            className="w-full aspect-video object-contain max-h-[70vh]"
           />
         </div>
       </div>
@@ -370,7 +370,10 @@ export default function Watch() {
                 )}
               </div>
               <div>
-                <p className="font-medium">{video.channel_name}</p>
+                <p className="font-medium flex items-center gap-1">
+                  {video.channel_name}
+                  {video.channel_verified && <FiCheckCircle className="w-4 h-4 text-primary-500" title="Chaîne vérifiée" />}
+                </p>
                 <p className="text-sm text-dark-400">{formatViews(video.subscriber_count)} abonnés</p>
               </div>
             </Link>
