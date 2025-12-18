@@ -106,6 +106,7 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/stream', streamRoutes);
+app.use('/api/ads', require('./routes/ads'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

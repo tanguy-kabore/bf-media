@@ -418,6 +418,35 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Ads table
+CREATE TABLE IF NOT EXISTS ads (
+  id VARCHAR(36) PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  ad_type ENUM('banner', 'video', 'overlay', 'sponsored') DEFAULT 'banner',
+  media_url VARCHAR(500),
+  target_url VARCHAR(500) NOT NULL,
+  duration INT DEFAULT 0,
+  position ENUM('sidebar', 'header', 'footer', 'pre_roll', 'mid_roll', 'post_roll', 'in_feed') DEFAULT 'sidebar',
+  priority INT DEFAULT 1,
+  start_date DATE,
+  end_date DATE,
+  budget DECIMAL(10,2) DEFAULT 0,
+  cpm DECIMAL(10,2) DEFAULT 0,
+  status ENUM('draft', 'active', 'paused', 'completed', 'archived') DEFAULT 'draft',
+  impressions INT DEFAULT 0,
+  clicks INT DEFAULT 0,
+  revenue DECIMAL(10,2) DEFAULT 0,
+  target_countries JSON,
+  target_devices JSON,
+  target_categories JSON,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_status (status),
+  INDEX idx_position (position),
+  INDEX idx_ad_type (ad_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insert default categories
 INSERT IGNORE INTO categories (name, slug, description, icon) VALUES
 ('Musique', 'music', 'Clips musicaux, concerts et contenus audio', 'music'),

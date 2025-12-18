@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { FiThumbsUp, FiThumbsDown, FiShare2, FiBookmark, FiFlag, FiMoreHorizontal, FiList, FiPlus, FiCheck, FiX, FiBell, FiUserPlus, FiCheckCircle } from 'react-icons/fi'
+import AdBanner from '../components/AdBanner'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import api from '../services/api'
@@ -578,7 +579,11 @@ export default function Watch() {
       <div className="w-full xl:w-96 space-y-3 flex-shrink-0 mt-6 xl:pt-4">
         <h3 className="font-medium mb-4">Vidéos suggérées</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">
-          {relatedVideos.map((video) => (
+          {relatedVideos.slice(0, 3).map((video) => (
+            <VideoCard key={video.id} video={video} horizontal />
+          ))}
+          <AdBanner position="in_feed" />
+          {relatedVideos.slice(3).map((video) => (
             <VideoCard key={video.id} video={video} horizontal />
           ))}
         </div>
