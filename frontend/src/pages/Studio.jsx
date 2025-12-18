@@ -46,10 +46,12 @@ function StudioDashboard() {
         api.get('/analytics/channel?period=28'),
         api.get('/analytics/dashboard')
       ])
+      console.log('Dashboard response:', dashboardRes.data)
+      console.log('Storage data:', dashboardRes.data?.storage)
       setAnalytics(analyticsRes.data)
       setDashboard(dashboardRes.data)
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error fetching dashboard:', error)
     } finally {
       setLoading(false)
     }

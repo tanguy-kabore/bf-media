@@ -353,8 +353,12 @@ router.get('/dashboard', authenticate, asyncHandler(async (req, res) => {
     WHERE c.user_id = ?
   `, [userId]);
   
+  console.log('Storage query result:', JSON.stringify(storageResult));
+  
   const actualStorageUsed = Number(storageResult[0]?.total_size) || 0;
   const videoCount = Number(storageResult[0]?.video_count) || 0;
+  
+  console.log('Parsed storage - used:', actualStorageUsed, 'count:', videoCount, 'limit:', storageLimit);
   
   // Get channels for other queries
   const channels = await query('SELECT id FROM channels WHERE user_id = ?', [userId]);

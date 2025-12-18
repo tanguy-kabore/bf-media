@@ -152,22 +152,35 @@ export default function Watch() {
 
   const handleShare = async () => {
     const url = window.location.href
-    try {
-      if (navigator.share) {
+    
+    // Try native share first (mobile)
+    if (navigator.share) {
+      try {
         await navigator.share({
-          title: video.title,
-          text: `Regardez "${video.title}" sur BF Media`,
+          title: video?.title || 'Vidéo',
+          text: `Regardez cette vidéo`,
           url: url
         })
-      } else {
-        await navigator.clipboard.writeText(url)
-        toast.success('Lien copié dans le presse-papier')
+        return
+      } catch (error) {
+        // User cancelled or error - fall through to clipboard
+        if (error.name === 'AbortError') return
       }
+    }
+    
+    // Fallback to clipboard
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Lien copié !')
     } catch (error) {
-      if (error.name !== 'AbortError') {
-        await navigator.clipboard.writeText(url)
-        toast.success('Lien copié dans le presse-papier')
-      }
+      // Final fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = url
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      toast.success('Lien copié !')
     }
   }
 
@@ -326,22 +339,19 @@ export default function Watch() {
 
   return (
     <>
-      {/* Video player - fixed on mobile, normal on desktop */}
-      <div className="fixed sm:static top-14 left-0 right-0 z-20 sm:z-0 bg-black sm:bg-transparent -mx-3 sm:mx-0">
-        <div className="w-full sm:rounded-xl overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+      {/* Video player */}
+      <div className="-mx-3 sm:mx-0 bg-black sm:bg-transparent">
+        <div className="w-full sm:rounded-xl overflow-hidden">
           <video
             ref={videoRef}
             src={video.video_url}
             poster={video.thumbnail_url}
             controls
             autoPlay
-            className="w-full max-h-[calc(100vh-120px)] object-contain"
+            className="w-full aspect-video object-contain"
           />
         </div>
       </div>
-
-      {/* Spacer for fixed video on mobile */}
-      <div className="sm:hidden h-[56.25vw]" />
 
       <div className="flex flex-col xl:flex-row gap-6">
         <div className="flex-1 min-w-0">
