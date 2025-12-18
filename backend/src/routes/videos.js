@@ -548,8 +548,13 @@ router.post('/:id/report', authenticate, asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Raison de signalement invalide' });
   }
 
-  // Check if video exists
-  const [video] = await query('SELECT id FROM videos WHERE id = ?', [id]);
+  // Check if video exists and get owner info
+  const [video] = await query(`
+    SELECT v.id, v.title, c.user_id as owner_id 
+    FROM videos v 
+    JOIN channels c ON v.channel_id = c.id 
+    WHERE v.id = ?
+  `, [id]);
   if (!video) {
     return res.status(404).json({ error: 'Vidéo non trouvée' });
   }
@@ -568,6 +573,30 @@ router.post('/:id/report', authenticate, asyncHandler(async (req, res) => {
     'INSERT INTO reports (id, reporter_id, content_type, content_id, reason, description) VALUES (?, ?, ?, ?, ?, ?)',
     [reportId, req.user.id, 'video', id, reason, description || null]
   );
+
+  // Notify video owner about the report
+  const reasonLabels = {
+    spam: 'Spam', harassment: 'Harcèlement', hate_speech: 'Discours haineux',
+    violence: 'Violence', nudity: 'Nudité', copyright: 'Droits d\'auteur',
+    misinformation: 'Désinformation', other: 'Autre'
+  };
+  
+  try {
+    const notificationId = uuidv4();
+    await query(
+      `INSERT INTO notifications (id, user_id, type, title, message, data) VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        notificationId,
+        video.owner_id,
+        'report',
+        'Vidéo signalée',
+        `Votre vidéo "${video.title}" a été signalée pour: ${reasonLabels[reason] || reason}`,
+        JSON.stringify({ videoId: id, reason, reportId })
+      ]
+    );
+  } catch (e) {
+    console.error('Error creating notification:', e.message);
+  }
 
   res.status(201).json({ message: 'Signalement envoyé avec succès' });
 }));

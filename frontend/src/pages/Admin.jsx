@@ -759,8 +759,8 @@ const ReportDetailsModal = ({ report, details, loading, reasonLabels, onClose, o
   const otherReports = details?.otherReports || []
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-dark-900 rounded-xl w-full max-w-2xl border border-dark-700 my-8">
+    <div className="fixed inset-0 bg-black/70 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-dark-900 rounded-xl w-full max-w-2xl border border-dark-700 my-4 sm:my-8 max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-dark-700">
           <h3 className="font-semibold flex items-center gap-2">
             <FiFlag className="w-5 h-5 text-red-400" />
@@ -772,18 +772,18 @@ const ReportDetailsModal = ({ report, details, loading, reasonLabels, onClose, o
         {loading ? (
           <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div></div>
         ) : (
-          <div className="p-4 space-y-4">
+          <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
             {/* Video Info */}
             {r.video_title && (
-              <div className="bg-dark-800 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-dark-400 mb-3">Vidéo signalée</h4>
-                <div className="flex gap-4">
-                  {r.video_thumbnail && <img src={r.video_thumbnail} alt="" className="w-32 h-20 object-cover rounded" />}
-                  <div className="flex-1">
-                    <p className="font-medium">{r.video_title}</p>
-                    <p className="text-sm text-dark-400">Chaîne: {r.channel_name} (@{r.channel_handle})</p>
-                    <p className="text-sm text-dark-400">Propriétaire: {r.owner_username}</p>
-                    <div className="flex gap-4 mt-2 text-xs text-dark-400">
+              <div className="bg-dark-800 rounded-lg p-3 sm:p-4">
+                <h4 className="text-sm font-medium text-dark-400 mb-2 sm:mb-3">Vidéo signalée</h4>
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  {r.video_thumbnail && <img src={r.video_thumbnail} alt="" className="w-full sm:w-32 h-auto sm:h-20 object-cover rounded" />}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm sm:text-base truncate">{r.video_title}</p>
+                    <p className="text-xs sm:text-sm text-dark-400">Chaîne: {r.channel_name} (@{r.channel_handle})</p>
+                    <p className="text-xs sm:text-sm text-dark-400">Propriétaire: {r.owner_username}</p>
+                    <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-dark-400">
                       <span>{formatNumber(r.video_views)} vues</span>
                       <span>{formatNumber(r.video_likes)} likes</span>
                       <span className={`px-2 py-0.5 rounded ${r.video_status === 'published' ? 'bg-green-500/20 text-green-400' : r.video_status === 'blocked' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{r.video_status}</span>
@@ -797,17 +797,17 @@ const ReportDetailsModal = ({ report, details, loading, reasonLabels, onClose, o
             )}
 
             {/* Report Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-dark-800 rounded-lg p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="bg-dark-800 rounded-lg p-3 sm:p-4">
                 <h4 className="text-sm font-medium text-dark-400 mb-2">Signalement</h4>
-                <p className="text-sm"><span className="text-dark-400">Raison:</span> <span className="px-2 py-0.5 rounded text-xs bg-red-500/20 text-red-400">{reasonLabels[r.reason] || r.reason}</span></p>
-                <p className="text-sm mt-2"><span className="text-dark-400">Date:</span> {new Date(r.created_at).toLocaleString('fr-FR')}</p>
-                <p className="text-sm mt-2"><span className="text-dark-400">Statut:</span> <span className={`px-2 py-0.5 rounded text-xs ${r.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : r.status === 'resolved' ? 'bg-green-500/20 text-green-400' : 'bg-dark-600'}`}>{r.status}</span></p>
+                <p className="text-xs sm:text-sm"><span className="text-dark-400">Raison:</span> <span className="px-2 py-0.5 rounded text-xs bg-red-500/20 text-red-400">{reasonLabels[r.reason] || r.reason}</span></p>
+                <p className="text-xs sm:text-sm mt-2"><span className="text-dark-400">Date:</span> {new Date(r.created_at).toLocaleString('fr-FR')}</p>
+                <p className="text-xs sm:text-sm mt-2"><span className="text-dark-400">Statut:</span> <span className={`px-2 py-0.5 rounded text-xs ${r.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : r.status === 'resolved' ? 'bg-green-500/20 text-green-400' : 'bg-dark-600'}`}>{r.status}</span></p>
               </div>
-              <div className="bg-dark-800 rounded-lg p-4">
+              <div className="bg-dark-800 rounded-lg p-3 sm:p-4">
                 <h4 className="text-sm font-medium text-dark-400 mb-2">Signaleur</h4>
-                <p className="text-sm"><span className="text-dark-400">Utilisateur:</span> {r.reporter_username}</p>
-                <p className="text-sm mt-2"><span className="text-dark-400">Email:</span> {r.reporter_email}</p>
+                <p className="text-xs sm:text-sm"><span className="text-dark-400">Utilisateur:</span> {r.reporter_username}</p>
+                <p className="text-xs sm:text-sm mt-2 break-all"><span className="text-dark-400">Email:</span> {r.reporter_email}</p>
               </div>
             </div>
 
