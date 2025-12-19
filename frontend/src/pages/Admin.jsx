@@ -1192,6 +1192,26 @@ const AdModal = ({ ad, onClose, onSave }) => {
   const [activeTab, setActiveTab] = useState('general')
   const [uploading, setUploading] = useState(false)
   const [mediaInputMode, setMediaInputMode] = useState(ad?.media_url?.startsWith('/uploads') ? 'upload' : 'url')
+  
+  // Helper to parse targeting arrays (handles both string and array formats)
+  const parseTargetArray = (data) => {
+    if (!data) return []
+    if (Array.isArray(data)) return data
+    try {
+      const parsed = JSON.parse(data)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  
+  // Determine targeting mode based on existing data
+  const hasTargeting = ad && (
+    parseTargetArray(ad.target_countries).length > 0 ||
+    parseTargetArray(ad.target_devices).length > 0 ||
+    parseTargetArray(ad.target_categories).length > 0
+  )
+  
   const [form, setForm] = useState({ 
     title: ad?.title || '', 
     description: ad?.description || '', 
@@ -1200,10 +1220,10 @@ const AdModal = ({ ad, onClose, onSave }) => {
     target_url: ad?.target_url || '', 
     position: ad?.position || 'sidebar', 
     status: ad?.status || 'draft',
-    targeting_mode: ad?.targeting_mode || 'general',
-    target_countries: ad?.target_countries ? JSON.parse(ad.target_countries) : [],
-    target_devices: ad?.target_devices ? JSON.parse(ad.target_devices) : [],
-    target_categories: ad?.target_categories ? JSON.parse(ad.target_categories) : [],
+    targeting_mode: hasTargeting ? 'targeted' : 'general',
+    target_countries: parseTargetArray(ad?.target_countries),
+    target_devices: parseTargetArray(ad?.target_devices),
+    target_categories: parseTargetArray(ad?.target_categories),
     start_date: ad?.start_date ? ad.start_date.split('T')[0] : '',
     end_date: ad?.end_date ? ad.end_date.split('T')[0] : '',
     budget: ad?.budget || '',

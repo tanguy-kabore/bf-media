@@ -82,13 +82,19 @@ export default function Sidebar({ collapsed, isOpen, isMobile, onClose }) {
           isMobile ? 'w-64' : (collapsed ? 'w-20' : 'w-60')
         }`}
       >
-      <div className="py-3 px-3">
+      <div className="py-3 px-3 flex flex-col h-full">
         <div className="space-y-1">
           {renderLinks(mainLinks)}
         </div>
 
         {!collapsed && (
           <>
+            {/* Ad at top of menu */}
+            <div className="my-3 border-t border-dark-800" />
+            <div className="px-1">
+              <AdBanner position="sidebar" />
+            </div>
+
             <div className="my-3 border-t border-dark-800" />
             <div className="space-y-1">
               <p className="px-4 py-2 text-sm font-medium text-dark-400">Bibliothèque</p>
@@ -127,15 +133,12 @@ export default function Sidebar({ collapsed, isOpen, isMobile, onClose }) {
               {renderLinks(categoryLinks)}
             </div>
 
-            <div className="my-3 border-t border-dark-800" />
-            <div className="px-2">
-              <AdBanner position="sidebar" />
-            </div>
-
-            <div className="my-3 border-t border-dark-800" />
-            <div className="px-4 py-4 text-xs text-dark-500">
-              <p>© {new Date().getFullYear()} TIPOKO</p>
-              <p className="mt-1">Tous droits réservés</p>
+            <div className="flex-1" />
+            <div className="mt-3 border-t border-dark-800 pt-3">
+              <div className="px-4 py-2 text-xs text-dark-500">
+                <p>© {new Date().getFullYear()} TIPOKO</p>
+                <p className="mt-1">Tous droits réservés</p>
+              </div>
             </div>
           </>
         )}
