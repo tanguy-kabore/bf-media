@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
+import AdBanner from './AdBanner'
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -51,7 +52,18 @@ export default function Layout() {
           <div className="p-3 sm:p-4 md:p-6 w-full max-w-full overflow-x-hidden">
             <Outlet />
           </div>
+          {/* Footer Ad */}
+          <div className="p-3 sm:p-4 md:p-6 pt-0">
+            <AdBanner position="footer" />
+          </div>
         </main>
+
+        {/* Right Sidebar Ad - Desktop only */}
+        {!isMobile && (
+          <aside className="hidden xl:block w-72 flex-shrink-0 p-4 sticky top-14 h-[calc(100vh-56px)] overflow-y-auto">
+            <AdBanner position="sidebar" className="mb-4" />
+          </aside>
+        )}
       </div>
     </div>
   )
