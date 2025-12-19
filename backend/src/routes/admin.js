@@ -258,6 +258,11 @@ router.patch('/users/:id', authenticate, isAdmin, asyncHandler(async (req, res) 
     await query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
   }
 
+  // Sync channel verification status with user verification
+  if (isVerified !== undefined) {
+    await query(`UPDATE channels SET is_verified = ? WHERE user_id = ?`, [isVerified ? 1 : 0, id]);
+  }
+
   res.json({ message: 'Utilisateur mis à jour' });
 }));
 
@@ -783,10 +788,12 @@ router.patch('/verifications/:id', authenticate, isAdmin, asyncHandler(async (re
     WHERE id = ?
   `, [status, status === 'rejected' ? rejection_reason : null, req.user.id, id]);
 
-  // If approved, update user's verification status
+  // If approved, update user's verification status AND channel verification
   if (status === 'approved') {
     try {
       await query(`UPDATE users SET is_verified = 1 WHERE id = ?`, [request.user_id]);
+      // Also update the channel's is_verified field
+      await query(`UPDATE channels SET is_verified = 1 WHERE user_id = ?`, [request.user_id]);
       // Try to update additional columns if they exist
       await query(`UPDATE users SET verification_badge = 1, verified_at = NOW() WHERE id = ?`, [request.user_id]).catch(() => {});
     } catch (e) {
@@ -802,6 +809,7 @@ router.delete('/verifications/badge/:userId', authenticate, isAdmin, asyncHandle
   const { userId } = req.params;
 
   await query(`UPDATE users SET is_verified = 0 WHERE id = ?`, [userId]);
+  await query(`UPDATE channels SET is_verified = 0 WHERE user_id = ?`, [userId]);
   await query(`UPDATE users SET verification_badge = 0, verified_at = NULL WHERE id = ?`, [userId]).catch(() => {});
 
   res.json({ message: 'Badge de vérification retiré' });
