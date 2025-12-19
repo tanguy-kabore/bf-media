@@ -18,9 +18,11 @@ router.get('/video/:videoId', optionalAuth, asyncHandler(async (req, res) => {
   const comments = await query(`
     SELECT c.id, c.content, c.like_count, c.dislike_count, c.reply_count,
            c.is_pinned, c.is_hearted, c.is_edited, c.created_at,
-           u.id as user_id, u.username, u.display_name, u.avatar_url
+           u.id as user_id, u.username, u.display_name, u.avatar_url,
+           ch.is_verified as user_verified
     FROM comments c
     JOIN users u ON c.user_id = u.id
+    LEFT JOIN channels ch ON ch.user_id = u.id
     WHERE c.video_id = ? AND c.parent_id IS NULL AND c.is_deleted = FALSE
     ORDER BY c.is_pinned DESC, ${orderBy}
     LIMIT ? OFFSET ?
@@ -60,9 +62,11 @@ router.get('/:commentId/replies', optionalAuth, asyncHandler(async (req, res) =>
   const replies = await query(`
     SELECT c.id, c.content, c.like_count, c.dislike_count, c.is_hearted,
            c.is_edited, c.created_at,
-           u.id as user_id, u.username, u.display_name, u.avatar_url
+           u.id as user_id, u.username, u.display_name, u.avatar_url,
+           ch.is_verified as user_verified
     FROM comments c
     JOIN users u ON c.user_id = u.id
+    LEFT JOIN channels ch ON ch.user_id = u.id
     WHERE c.parent_id = ? AND c.is_deleted = FALSE
     ORDER BY c.created_at ASC
     LIMIT ? OFFSET ?

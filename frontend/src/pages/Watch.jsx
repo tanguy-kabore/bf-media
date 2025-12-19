@@ -373,7 +373,7 @@ export default function Watch() {
               <div>
                 <p className="font-medium flex items-center gap-1">
                   {video.channel_name}
-                  {video.channel_verified && <FiCheckCircle className="w-4 h-4 text-primary-500" title="Chaîne vérifiée" />}
+                  {!!video.channel_verified && <FiCheckCircle className="w-4 h-4 text-primary-500" title="Chaîne vérifiée" />}
                 </p>
                 <p className="text-sm text-dark-400">{formatViews(video.subscriber_count)} abonnés</p>
               </div>
@@ -497,7 +497,10 @@ export default function Watch() {
                 </Link>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{comment.display_name}</span>
+                    <span className="font-medium text-sm flex items-center gap-1">
+                      {comment.display_name}
+                      {!!comment.user_verified && <FiCheckCircle className="w-3.5 h-3.5 text-primary-500" />}
+                    </span>
                     <span className="text-xs text-dark-400">
                       {comment.created_at ? formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: fr }) : 'à l\'instant'}
                     </span>

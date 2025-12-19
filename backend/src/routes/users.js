@@ -43,10 +43,13 @@ router.get('/history/watch', authenticate, asyncHandler(async (req, res) => {
   const history = await query(`
     SELECT v.id, v.title, v.thumbnail_url, v.duration, v.view_count,
            wh.watch_time, wh.progress_percent, wh.watched_at,
-           c.name as channel_name, c.handle as channel_handle
+           c.name as channel_name, c.handle as channel_handle,
+           COALESCE(c.avatar_url, u.avatar_url) as channel_avatar,
+           c.is_verified as channel_verified
     FROM watch_history wh
     JOIN videos v ON wh.video_id = v.id
     JOIN channels c ON v.channel_id = c.id
+    JOIN users u ON c.user_id = u.id
     WHERE wh.user_id = ?
     ORDER BY wh.watched_at DESC
     LIMIT ? OFFSET ?
@@ -82,10 +85,13 @@ router.get('/saved', authenticate, asyncHandler(async (req, res) => {
   const saved = await query(`
     SELECT v.id, v.title, v.thumbnail_url, v.duration, v.view_count, v.published_at,
            sv.created_at as saved_at,
-           c.name as channel_name, c.handle as channel_handle
+           c.name as channel_name, c.handle as channel_handle,
+           COALESCE(c.avatar_url, u.avatar_url) as channel_avatar,
+           c.is_verified as channel_verified
     FROM saved_videos sv
     JOIN videos v ON sv.video_id = v.id
     JOIN channels c ON v.channel_id = c.id
+    JOIN users u ON c.user_id = u.id
     WHERE sv.user_id = ? AND v.status = 'published'
     ORDER BY sv.created_at DESC
     LIMIT ? OFFSET ?
@@ -116,10 +122,13 @@ router.get('/liked', authenticate, asyncHandler(async (req, res) => {
   const liked = await query(`
     SELECT v.id, v.title, v.thumbnail_url, v.duration, v.view_count, v.published_at,
            vl.created_at as liked_at,
-           c.name as channel_name, c.handle as channel_handle
+           c.name as channel_name, c.handle as channel_handle,
+           COALESCE(c.avatar_url, u.avatar_url) as channel_avatar,
+           c.is_verified as channel_verified
     FROM video_likes vl
     JOIN videos v ON vl.video_id = v.id
     JOIN channels c ON v.channel_id = c.id
+    JOIN users u ON c.user_id = u.id
     WHERE vl.user_id = ? AND vl.is_like = TRUE AND v.status = 'published'
     ORDER BY vl.created_at DESC
     LIMIT ? OFFSET ?
