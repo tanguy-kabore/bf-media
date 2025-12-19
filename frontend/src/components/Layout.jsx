@@ -58,10 +58,12 @@ export default function Layout() {
           </div>
         </main>
 
-        {/* Right Sidebar Ad - Desktop only */}
+        {/* Right Sidebar Ad - Desktop only, on large screens */}
         {!isMobile && (
-          <aside className="hidden xl:block w-72 flex-shrink-0 p-4 sticky top-14 h-[calc(100vh-56px)] overflow-y-auto">
-            <AdBanner position="sidebar" className="mb-4" />
+          <aside className="hidden 2xl:block w-80 flex-shrink-0 p-4 pt-6">
+            <div className="sticky top-20">
+              <AdBanner position="sidebar" className="mb-4" />
+            </div>
           </aside>
         )}
       </div>

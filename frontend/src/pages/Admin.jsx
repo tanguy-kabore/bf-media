@@ -1269,12 +1269,32 @@ const AdModal = ({ ad, onClose, onSave }) => {
   const getMediaPreview = () => {
     if (!form.media_url) return null
     const isVideo = form.media_url.match(/\.(mp4|webm)$/i)
-    const fullUrl = form.media_url.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '')}${form.media_url}` : form.media_url
+    // Handle both relative and absolute URLs
+    let fullUrl = form.media_url
+    if (form.media_url.startsWith('/uploads')) {
+      // Use window.location.origin for uploaded files
+      const apiBase = import.meta.env.VITE_API_URL?.replace('/api', '') || window.location.origin
+      fullUrl = `${apiBase}${form.media_url}`
+    }
     
     if (isVideo) {
-      return <video src={fullUrl} className="w-full h-32 object-cover rounded-lg" controls />
+      return (
+        <video 
+          src={fullUrl} 
+          className="w-full h-40 object-contain rounded-lg bg-black" 
+          controls 
+          preload="metadata"
+        />
+      )
     }
-    return <img src={fullUrl} alt="Preview" className="w-full h-32 object-cover rounded-lg" onError={(e) => e.target.style.display = 'none'} />
+    return (
+      <img 
+        src={fullUrl} 
+        alt="Preview" 
+        className="w-full h-40 object-contain rounded-lg bg-dark-700" 
+        onError={(e) => { e.target.src = '/placeholder.jpg' }} 
+      />
+    )
   }
 
   return (

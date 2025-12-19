@@ -132,14 +132,17 @@ export default function VideoCard({ video, horizontal = false, compact = false }
 
   return (
     <div className="video-card group">
-      <Link to={`/watch/${video.id}`} className="thumbnail relative">
+      <Link to={`/watch/${video.id}`} className="thumbnail relative block aspect-video rounded-xl overflow-hidden bg-dark-800">
         <img
           src={video.thumbnail_url || '/placeholder.jpg'}
           alt={video.title}
           loading="lazy"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
         {video.duration > 0 && (
-          <span className="duration">{formatDuration(video.duration)}</span>
+          <span className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-white text-xs font-medium rounded">
+            {formatDuration(video.duration)}
+          </span>
         )}
         <button
           onClick={handleSaveVideo}
@@ -161,18 +164,20 @@ export default function VideoCard({ video, horizontal = false, compact = false }
             )}
           </div>
         </Link>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-medium line-clamp-2 leading-snug group-hover:text-primary-400">
-            {video.title}
-          </h3>
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <Link to={`/watch/${video.id}`}>
+            <h3 className="font-medium text-sm leading-snug line-clamp-2 group-hover:text-primary-400 transition-colors">
+              {video.title}
+            </h3>
+          </Link>
           <Link 
             to={`/channel/${video.channel_handle}`}
             className="text-sm text-dark-400 hover:text-white mt-1 flex items-center gap-1"
           >
-            <span>{video.channel_name}</span>
+            <span className="truncate">{video.channel_name}</span>
             {!!video.channel_verified && <VerifiedBadge size="sm" />}
           </Link>
-          <p className="text-sm text-dark-400">
+          <p className="text-sm text-dark-400 truncate">
             {formatViews(video.view_count)} vues • {timeAgo}
           </p>
         </div>
