@@ -4,7 +4,15 @@ import api from '../services/api'
 
 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || window.location.origin
 
-export default function AdBanner({ position = 'sidebar', className = '' }) {
+// Detect device type
+const getDeviceType = () => {
+  const ua = navigator.userAgent
+  if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) return 'tablet'
+  if (/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)) return 'mobile'
+  return 'desktop'
+}
+
+export default function AdBanner({ position = 'sidebar', className = '', category = '' }) {
   const [ads, setAds] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [videoCountdown, setVideoCountdown] = useState(5)
@@ -15,11 +23,19 @@ export default function AdBanner({ position = 'sidebar', className = '' }) {
 
   useEffect(() => {
     fetchAds()
-  }, [position])
+  }, [position, category])
 
   const fetchAds = async () => {
     try {
-      const res = await api.get(`/ads?position=${position}&limit=5`)
+      // Build query with targeting params
+      const params = new URLSearchParams({
+        position,
+        limit: '5',
+        device: getDeviceType()
+      })
+      if (category) params.append('category', category)
+      
+      const res = await api.get(`/ads?${params}`)
       setAds(res.data || [])
       
       if (res.data?.length > 0) {
@@ -37,13 +53,34 @@ export default function AdBanner({ position = 'sidebar', className = '' }) {
   }
 
   const handleClick = async (e, ad) => {
+    e.preventDefault()
     e.stopPropagation()
+    
+    // Get the target URL
+    let targetUrl = ad.target_url
+    
+    // Ensure URL has protocol
+    if (targetUrl && !targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+      targetUrl = 'https://' + targetUrl
+    }
+    
+    // Record click
     try {
-      await api.post(`/ads/${ad.id}/click`)
-    } catch (error) {}
-    // Open link
-    if (ad.target_url) {
-      window.open(ad.target_url, '_blank', 'noopener,noreferrer')
+      const res = await api.post(`/ads/${ad.id}/click`)
+      // Use returned URL if available (more reliable)
+      if (res.data?.target_url) {
+        targetUrl = res.data.target_url
+        if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+          targetUrl = 'https://' + targetUrl
+        }
+      }
+    } catch (error) {
+      console.error('Click tracking error:', error)
+    }
+    
+    // Open link in new tab
+    if (targetUrl) {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer')
     }
   }
 

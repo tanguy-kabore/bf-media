@@ -49,24 +49,70 @@ router.post('/upload', authenticate, uploadAdMedia.single('file'), asyncHandler(
   res.json({ url: mediaUrl, filename: req.file.filename });
 }));
 
-// Get active ads for a specific position
+// Get active ads for a specific position with targeting
 router.get('/', optionalAuth, asyncHandler(async (req, res) => {
-  const { position = 'sidebar', limit = 5 } = req.query;
+  const { position = 'sidebar', limit = 5, country, device, category } = req.query;
   
   const now = new Date().toISOString().split('T')[0];
   
-  const ads = await query(`
-    SELECT id, title, description, ad_type, media_url, target_url, position
+  // Get all potentially active ads for this position
+  const allAds = await query(`
+    SELECT id, title, description, ad_type, media_url, target_url, position,
+           target_countries, target_devices, target_categories, budget, revenue
     FROM ads 
     WHERE status = 'active' 
       AND position = ?
       AND (start_date IS NULL OR start_date <= ?)
       AND (end_date IS NULL OR end_date >= ?)
+      AND (budget = 0 OR budget > revenue)
     ORDER BY priority DESC, RAND()
-    LIMIT ?
-  `, [position, now, now, parseInt(limit)]);
+  `, [position, now, now]);
   
-  res.json(ads);
+  // Filter ads based on targeting
+  const filteredAds = allAds.filter(ad => {
+    // Parse targeting arrays
+    let targetCountries = [];
+    let targetDevices = [];
+    let targetCategories = [];
+    
+    try {
+      targetCountries = JSON.parse(ad.target_countries || '[]');
+      targetDevices = JSON.parse(ad.target_devices || '[]');
+      targetCategories = JSON.parse(ad.target_categories || '[]');
+    } catch (e) {
+      // If parsing fails, no targeting = show to everyone
+    }
+    
+    // Country targeting
+    if (targetCountries.length > 0 && country) {
+      if (!targetCountries.includes(country)) return false;
+    }
+    
+    // Device targeting
+    if (targetDevices.length > 0 && device) {
+      if (!targetDevices.includes(device)) return false;
+    }
+    
+    // Category targeting
+    if (targetCategories.length > 0 && category) {
+      if (!targetCategories.includes(category)) return false;
+    }
+    
+    return true;
+  });
+  
+  // Return only needed fields, limited
+  const result = filteredAds.slice(0, parseInt(limit)).map(ad => ({
+    id: ad.id,
+    title: ad.title,
+    description: ad.description,
+    ad_type: ad.ad_type,
+    media_url: ad.media_url,
+    target_url: ad.target_url,
+    position: ad.position
+  }));
+  
+  res.json(result);
 }));
 
 // Get a single ad by ID
