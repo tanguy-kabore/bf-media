@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import api from '../services/api'
 import VideoCard from '../components/VideoCard'
+import AdBanner from '../components/AdBanner'
 
 const categories = [
   { id: null, name: 'Tout' },
@@ -40,6 +41,9 @@ export default function Home() {
 
   return (
     <div className="w-full max-w-full overflow-x-hidden">
+      {/* Header Ad */}
+      <AdBanner position="header" className="mb-4 -mx-3 sm:mx-0 sm:rounded-lg" />
+
       {/* Categories - horizontal scroll on mobile */}
       <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-4 hide-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
         {categories.map((cat) => (

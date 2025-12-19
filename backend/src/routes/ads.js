@@ -1,9 +1,46 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/database');
-const { optionalAuth } = require('../middleware/auth');
+const { optionalAuth, authenticate } = require('../middleware/auth');
 
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+// Configure multer for ad media uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '../../uploads/ads'));
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `ad-${uuidv4()}${ext}`);
+  }
+});
+
+const uploadAdMedia = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|webm/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    }
+    cb(new Error('Format non supporté. Utilisez: JPG, PNG, GIF, WEBP, MP4, WEBM'));
+  }
+});
+
+// Upload ad media
+router.post('/upload', authenticate, uploadAdMedia.single('file'), asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Fichier requis' });
+  }
+  const mediaUrl = `/uploads/ads/${req.file.filename}`;
+  res.json({ url: mediaUrl, filename: req.file.filename });
+}));
 
 // Get active ads for a specific position
 router.get('/', optionalAuth, asyncHandler(async (req, res) => {

@@ -5,7 +5,7 @@ import {
   FiHardDrive, FiTrendingUp, FiUserCheck, FiEye, FiPieChart,
   FiGlobe, FiMonitor, FiSmartphone, FiSearch, FiEdit, FiTrash2, 
   FiToggleLeft, FiToggleRight, FiPlus, FiX, FiRefreshCw, FiArrowLeft,
-  FiMenu, FiBell, FiLogOut, FiClock, FiExternalLink
+  FiMenu, FiBell, FiLogOut, FiClock, FiExternalLink, FiUpload, FiLink
 } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
 import usePlatformStore from '../store/platformStore'
@@ -1190,6 +1190,8 @@ const AdminAds = () => {
 
 const AdModal = ({ ad, onClose, onSave }) => {
   const [activeTab, setActiveTab] = useState('general')
+  const [uploading, setUploading] = useState(false)
+  const [mediaInputMode, setMediaInputMode] = useState(ad?.media_url?.startsWith('/uploads') ? 'upload' : 'url')
   const [form, setForm] = useState({ 
     title: ad?.title || '', 
     description: ad?.description || '', 
@@ -1220,10 +1222,37 @@ const AdModal = ({ ad, onClose, onSave }) => {
     { id: 'news', name: 'Actualités' }, { id: 'education', name: 'Éducation' }, { id: 'gaming', name: 'Jeux vidéo' },
     { id: 'tech', name: 'Technologie' }, { id: 'lifestyle', name: 'Lifestyle' }
   ]
+  const positions = [
+    { id: 'sidebar', name: 'Barre latérale', desc: 'Affiché dans le menu' },
+    { id: 'in_feed', name: 'Dans le flux', desc: 'Entre les vidéos suggérées' },
+    { id: 'header', name: 'Bannière haute', desc: 'En haut de page' },
+    { id: 'footer', name: 'Bannière basse', desc: 'En bas de page' }
+  ]
 
   const toggleArrayItem = (field, item) => {
     const arr = form[field]
     setForm({ ...form, [field]: arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item] })
+  }
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    setUploading(true)
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    try {
+      const res = await api.post('/ads/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      setForm({ ...form, media_url: res.data.url })
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert('Erreur lors de l\'upload')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleSubmit = (e) => {
@@ -1235,6 +1264,17 @@ const AdModal = ({ ad, onClose, onSave }) => {
       target_categories: JSON.stringify(form.target_categories)
     }
     onSave(data)
+  }
+
+  const getMediaPreview = () => {
+    if (!form.media_url) return null
+    const isVideo = form.media_url.match(/\.(mp4|webm)$/i)
+    const fullUrl = form.media_url.startsWith('/') ? `${import.meta.env.VITE_API_URL?.replace('/api', '')}${form.media_url}` : form.media_url
+    
+    if (isVideo) {
+      return <video src={fullUrl} className="w-full h-32 object-cover rounded-lg" controls />
+    }
+    return <img src={fullUrl} alt="Preview" className="w-full h-32 object-cover rounded-lg" onError={(e) => e.target.style.display = 'none'} />
   }
 
   return (
@@ -1249,6 +1289,7 @@ const AdModal = ({ ad, onClose, onSave }) => {
         <div className="flex border-b border-dark-700">
           {[
             { id: 'general', label: 'Général' },
+            { id: 'media', label: 'Média' },
             { id: 'targeting', label: 'Ciblage' },
             { id: 'schedule', label: 'Planification' }
           ].map(tab => (
@@ -1275,13 +1316,11 @@ const AdModal = ({ ad, onClose, onSave }) => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Type</label>
+                  <label className="block text-sm font-medium mb-1">Type de publicité</label>
                   <select value={form.ad_type} onChange={e => setForm({ ...form, ad_type: e.target.value })} className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg">
-                    <option value="banner">Bannière</option>
-                    <option value="sidebar">Sidebar</option>
-                    <option value="video_pre">Pré-roll vidéo</option>
-                    <option value="video_mid">Mid-roll vidéo</option>
-                    <option value="overlay">Overlay</option>
+                    <option value="banner">Bannière image</option>
+                    <option value="video">Vidéo publicitaire</option>
+                    <option value="sponsored">Contenu sponsorisé</option>
                   </select>
                 </div>
                 <div>
@@ -1294,12 +1333,110 @@ const AdModal = ({ ad, onClose, onSave }) => {
                 </div>
               </div>
               <div>
+                <label className="block text-sm font-medium mb-2">Position d'affichage</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {positions.map(pos => (
+                    <button
+                      key={pos.id}
+                      type="button"
+                      onClick={() => setForm({ ...form, position: pos.id })}
+                      className={`p-3 rounded-lg border text-left transition-all ${form.position === pos.id ? 'border-primary-500 bg-primary-500/10' : 'border-dark-700 hover:border-dark-600'}`}
+                    >
+                      <p className="font-medium text-sm">{pos.name}</p>
+                      <p className="text-xs text-dark-400">{pos.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-1">URL de destination *</label>
                 <input type="url" value={form.target_url} onChange={e => setForm({ ...form, target_url: e.target.value })} required className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:outline-none" placeholder="https://votre-site.com" />
               </div>
+            </>
+          )}
+
+          {activeTab === 'media' && (
+            <>
               <div>
-                <label className="block text-sm font-medium mb-1">URL du média (image/vidéo)</label>
-                <input type="url" value={form.media_url} onChange={e => setForm({ ...form, media_url: e.target.value })} className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:outline-none" placeholder="https://..." />
+                <label className="block text-sm font-medium mb-2">Source du média</label>
+                <div className="flex gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setMediaInputMode('upload')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${mediaInputMode === 'upload' ? 'bg-primary-500 text-white' : 'bg-dark-700 hover:bg-dark-600'}`}
+                  >
+                    <FiUpload className="w-4 h-4" /> Uploader un fichier
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMediaInputMode('url')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${mediaInputMode === 'url' ? 'bg-primary-500 text-white' : 'bg-dark-700 hover:bg-dark-600'}`}
+                  >
+                    <FiLink className="w-4 h-4" /> Coller une URL
+                  </button>
+                </div>
+
+                {mediaInputMode === 'upload' ? (
+                  <div className="border-2 border-dashed border-dark-600 rounded-xl p-6 text-center hover:border-primary-500 transition-colors">
+                    <input
+                      type="file"
+                      id="ad-media-upload"
+                      accept="image/*,video/mp4,video/webm"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <label htmlFor="ad-media-upload" className="cursor-pointer">
+                      {uploading ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+                          <p className="text-sm text-dark-400">Upload en cours...</p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <FiUpload className="w-10 h-10 text-dark-400" />
+                          <p className="font-medium">Cliquez pour sélectionner</p>
+                          <p className="text-xs text-dark-400">JPG, PNG, GIF, WEBP, MP4, WEBM (max 50MB)</p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+                ) : (
+                  <input
+                    type="url"
+                    value={form.media_url}
+                    onChange={e => setForm({ ...form, media_url: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:outline-none"
+                    placeholder="https://exemple.com/image.jpg"
+                  />
+                )}
+              </div>
+
+              {form.media_url && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Aperçu</label>
+                  <div className="bg-dark-800 rounded-xl p-3 border border-dark-700">
+                    {getMediaPreview()}
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-dark-400 truncate flex-1">{form.media_url}</p>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, media_url: '' })}
+                        className="ml-2 p-1.5 hover:bg-dark-600 rounded text-red-400"
+                      >
+                        <FiTrash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-dark-800/50 rounded-lg p-3 text-sm">
+                <p className="font-medium mb-1">📐 Dimensions recommandées</p>
+                <ul className="text-xs text-dark-400 space-y-1">
+                  <li>• <strong>Sidebar</strong>: 300x250px ou 300x600px</li>
+                  <li>• <strong>Dans le flux</strong>: 16:9 (1280x720px)</li>
+                  <li>• <strong>Bannière</strong>: 728x90px ou 970x90px</li>
+                </ul>
               </div>
             </>
           )}
