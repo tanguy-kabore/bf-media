@@ -644,11 +644,24 @@ router.get('/ads', authenticate, isAdmin, asyncHandler(async (req, res) => {
 router.post('/ads', authenticate, isAdmin, asyncHandler(async (req, res) => {
   const { title, description, ad_type, media_url, target_url, duration, position, priority, start_date, end_date, budget, cpm, status, targeting_mode, target_countries, target_devices, target_categories } = req.body;
 
+  // Validate required fields
+  if (!title || !target_url) {
+    return res.status(400).json({ error: 'Titre et URL cible requis' });
+  }
+
+  // Validate position is a valid ENUM value
+  const validPositions = ['sidebar', 'header', 'footer', 'pre_roll', 'mid_roll', 'post_roll', 'in_feed'];
+  const adPosition = validPositions.includes(position) ? position : 'sidebar';
+  
+  // Validate ad_type is a valid ENUM value
+  const validAdTypes = ['banner', 'video', 'overlay', 'sponsored'];
+  const adType = validAdTypes.includes(ad_type) ? ad_type : 'banner';
+
   const id = require('uuid').v4();
   await query(`
     INSERT INTO ads (id, title, description, ad_type, media_url, target_url, duration, position, priority, start_date, end_date, budget, cpm, status, target_countries, target_devices, target_categories)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [id, title, description || '', ad_type, media_url || '', target_url, duration || 0, position || '', priority || 1, start_date || null, end_date || null, budget || 0, cpm || 0, status || 'draft', target_countries || '[]', target_devices || '[]', target_categories || '[]']);
+  `, [id, title, description || '', adType, media_url || '', target_url, duration || 0, adPosition, priority || 1, start_date || null, end_date || null, budget || 0, cpm || 0, status || 'draft', target_countries || '[]', target_devices || '[]', target_categories || '[]']);
 
   res.status(201).json({ message: 'Publicité créée', id });
 }));
