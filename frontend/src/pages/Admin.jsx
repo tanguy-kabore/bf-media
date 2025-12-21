@@ -1253,9 +1253,7 @@ const AdModal = ({ ad, onClose, onSave }) => {
   const positions = [
     { id: 'in_feed', name: 'Dans le flux', desc: 'Entre les vidéos suggérées' },
     { id: 'pre_roll', name: 'Pré-roll', desc: 'Avant la vidéo (skippable 5s)' },
-    { id: 'mid_roll', name: 'Mid-roll', desc: 'Pendant la vidéo' },
-    { id: 'header', name: 'Bannière haute', desc: 'En haut de page' },
-    { id: 'footer', name: 'Bannière basse', desc: 'En bas de page' }
+    { id: 'header', name: 'Bannière haute', desc: 'En haut de page' }
   ]
 
   const toggleArrayItem = (field, item) => {
@@ -1367,10 +1365,7 @@ const AdModal = ({ ad, onClose, onSave }) => {
                 <div>
                   <label className="block text-sm font-medium mb-1">Type de publicité</label>
                   <select value={form.ad_type} onChange={e => setForm({ ...form, ad_type: e.target.value })} className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg">
-                    <option value="banner">Bannière image</option>
-                    <option value="video">Vidéo publicitaire</option>
-                    <option value="overlay">Overlay (superposition)</option>
-                    <option value="sponsored">Contenu sponsorisé</option>
+                    <option value="banner">Pub simple</option>
                   </select>
                 </div>
                 <div>
