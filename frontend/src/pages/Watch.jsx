@@ -166,24 +166,25 @@ export default function Watch() {
     const watchDuration = Math.floor(currentTime)
     const watchPercentage = Math.min(100, (currentTime / duration) * 100)
     
+    // Only send if user actually watched something
+    if (watchDuration < 1) return
+    
     try {
-      // Use sendBeacon for reliability when page is closing
-      const data = JSON.stringify({
+      const data = {
         sessionId: watchSessionId,
         watchDuration,
         watchPercentage,
         liked: hasLikedRef.current,
         commented: hasCommentedRef.current,
         subscribedAfter: hasSubscribedRef.current
-      })
+      }
       
+      // Use sendBeacon for reliability when page is closing
       if (navigator.sendBeacon) {
-        navigator.sendBeacon(
-          `${import.meta.env.VITE_API_URL || ''}/api/videos/${id}/watch/end`,
-          new Blob([data], { type: 'application/json' })
-        )
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
+        navigator.sendBeacon(`/api/videos/${id}/watch/end`, blob)
       } else {
-        await api.post(`/videos/${id}/watch/end`, JSON.parse(data))
+        await api.post(`/videos/${id}/watch/end`, data)
       }
     } catch (error) {
       console.error('Error ending watch session:', error)

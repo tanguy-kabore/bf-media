@@ -994,6 +994,11 @@ router.get('/logs', authenticate, isAdmin, asyncHandler(async (req, res) => {
     WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
   `);
 
+  const [weekCount] = await query(`
+    SELECT COUNT(*) as count FROM activity_logs 
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+  `);
+
   const actionTypeStats = await query(`
     SELECT action_type, COUNT(*) as count 
     FROM activity_logs 
@@ -1006,6 +1011,7 @@ router.get('/logs', authenticate, isAdmin, asyncHandler(async (req, res) => {
     pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / limit) },
     stats: {
       todayCount: todayCount.count,
+      weekCount: weekCount.count,
       actionTypes: actionTypeStats
     }
   });

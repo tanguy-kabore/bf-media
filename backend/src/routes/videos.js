@@ -598,6 +598,29 @@ router.post('/:id/watch/start', optionalAuth, asyncHandler(async (req, res) => {
     deviceType, browser, os, country, req.ip, userAgent
   ]);
 
+  // Log video watch start to activity logs
+  await logActivity({
+    userId: req.user?.id || null,
+    action: ACTIONS.WATCH_VIDEO,
+    actionType: ACTION_TYPES.VIDEO,
+    targetType: 'video',
+    targetId: id,
+    details: { 
+      videoTitle: video.title,
+      channelName: video.channel_name,
+      channelOwnerId: video.channel_owner_id,
+      categoryName: video.category_name,
+      videoDuration: video.duration,
+      sessionId: watchSessionId,
+      source: source || 'direct',
+      device: deviceType,
+      browser,
+      os,
+      country,
+      status: 'started'
+    }
+  }, req);
+
   res.json({ success: true, watchSessionId });
 }));
 
@@ -641,6 +664,13 @@ router.post('/:id/watch/end', optionalAuth, asyncHandler(async (req, res) => {
 
   const completed = watchPercentage >= 90;
 
+  // Get watch session info for logging
+  const [watchSession] = await query(`
+    SELECT video_title, channel_id, channel_owner_id, category_name, video_duration
+    FROM watch_sessions 
+    WHERE session_id = ? AND video_id = ?
+  `, [sessionId, id]);
+
   // Update watch session with final data
   await query(`
     UPDATE watch_sessions 
@@ -654,30 +684,37 @@ router.post('/:id/watch/end', optionalAuth, asyncHandler(async (req, res) => {
     sessionId, id
   ]);
 
-  // Update video_views watch_duration
+  // Update video_views watch_duration (use IP as fallback session_id)
+  const viewSessionId = req.headers['x-session-id'] || req.ip;
   await query(`
     UPDATE video_views 
     SET watch_duration = ?
-    WHERE session_id = ? AND video_id = ?
+    WHERE (session_id = ? OR session_id = ?) AND video_id = ?
     ORDER BY viewed_at DESC LIMIT 1
-  `, [watchDuration || 0, sessionId, id]);
+  `, [watchDuration || 0, sessionId, viewSessionId, id]);
 
-  // Log for activity
-  if (req.user) {
-    await logActivity({
-      userId: req.user.id,
-      action: ACTIONS.WATCH_VIDEO,
-      actionType: ACTION_TYPES.VIDEO,
-      targetType: 'video',
-      targetId: id,
-      details: { 
-        watchDuration, 
-        watchPercentage, 
-        completed,
-        sessionId
-      }
-    }, req);
-  }
+  // Log watch completion to activity logs with full details
+  await logActivity({
+    userId: req.user?.id || null,
+    action: ACTIONS.WATCH_VIDEO,
+    actionType: ACTION_TYPES.VIDEO,
+    targetType: 'video',
+    targetId: id,
+    details: { 
+      videoTitle: watchSession?.video_title,
+      channelOwnerId: watchSession?.channel_owner_id,
+      categoryName: watchSession?.category_name,
+      videoDuration: watchSession?.video_duration,
+      watchDuration,
+      watchPercentage: Math.round(watchPercentage * 100) / 100,
+      completed,
+      liked: liked || false,
+      commented: commented || false,
+      subscribedAfter: subscribedAfter || false,
+      sessionId,
+      status: 'ended'
+    }
+  }, req);
 
   res.json({ success: true });
 }));
