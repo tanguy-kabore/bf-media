@@ -383,12 +383,12 @@ const AdminUsers = () => {
             users.map(u => (
               <tr key={u.id} className="hover:bg-dark-700/30">
                 <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-dark-600 flex items-center justify-center">{u.avatar_url ? <img src={u.avatar_url} className="w-full h-full rounded-full object-cover" /> : u.username?.charAt(0).toUpperCase()}</div><div><p className="font-medium">{u.username}</p><p className="text-sm text-dark-400">{u.email}</p></div></div></td>
-                <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs ${u.role === 'admin' ? 'bg-red-500/20 text-red-400' : u.role === 'moderator' ? 'bg-purple-500/20 text-purple-400' : 'bg-dark-600'}`}>{u.role}</span></td>
+                <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs ${u.role === 'superadmin' ? 'bg-orange-500/20 text-orange-400' : u.role === 'admin' ? 'bg-red-500/20 text-red-400' : u.role === 'moderator' ? 'bg-purple-500/20 text-purple-400' : u.role === 'creator' ? 'bg-blue-500/20 text-blue-400' : 'bg-dark-600'}`}>{u.role}</span></td>
                 <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs ${u.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{u.is_active ? 'Actif' : 'Inactif'}</span></td>
                 <td className="px-4 py-3 text-sm text-dark-400">{formatBytes(u.storage_used || 0)} / {formatBytes(u.storage_limit || 5368709120)}</td>
                 <td className="px-4 py-3"><div className="flex justify-end gap-2">
                   <button onClick={() => { setSelectedUser(u); setShowModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg" title="Modifier"><FiEdit className="w-4 h-4" /></button>
-                  {u.role !== 'admin' && (
+                  {u.role !== 'superadmin' && (
                     <>
                       <button 
                         onClick={() => updateUser(u.id, { isActive: !u.is_active })} 
@@ -427,7 +427,7 @@ const AdminUsers = () => {
                   <p className="text-xs text-dark-400 truncate max-w-[150px]">{u.email}</p>
                 </div>
               </div>
-              <span className={`px-2 py-1 rounded text-xs ${u.role === 'admin' ? 'bg-red-500/20 text-red-400' : u.role === 'moderator' ? 'bg-purple-500/20 text-purple-400' : 'bg-dark-600'}`}>{u.role}</span>
+              <span className={`px-2 py-1 rounded text-xs ${u.role === 'superadmin' ? 'bg-orange-500/20 text-orange-400' : u.role === 'admin' ? 'bg-red-500/20 text-red-400' : u.role === 'moderator' ? 'bg-purple-500/20 text-purple-400' : u.role === 'creator' ? 'bg-blue-500/20 text-blue-400' : 'bg-dark-600'}`}>{u.role}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
@@ -436,7 +436,7 @@ const AdminUsers = () => {
               </div>
               <div className="flex gap-1">
                 <button onClick={() => { setSelectedUser(u); setShowModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg"><FiEdit className="w-4 h-4" /></button>
-                {u.role !== 'admin' && (
+                {u.role !== 'superadmin' && (
                   <>
                     <button onClick={() => updateUser(u.id, { isActive: !u.is_active })} className={`p-2 hover:bg-dark-600 rounded-lg ${u.is_active ? 'text-green-400' : 'text-red-400'}`}>{u.is_active ? <FiToggleRight className="w-4 h-4" /> : <FiToggleLeft className="w-4 h-4" />}</button>
                     <button onClick={() => deleteUser(u.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"><FiTrash2 className="w-4 h-4" /></button>

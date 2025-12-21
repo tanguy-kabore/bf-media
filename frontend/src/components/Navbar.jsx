@@ -271,7 +271,7 @@ export default function Navbar({ onMenuClick }) {
                       <FiSettings className="w-5 h-5" />
                       <span>Paramètres</span>
                     </Link>
-                    {user?.role === 'admin' && (
+                    {['admin', 'superadmin'].includes(user?.role) && (
                       <Link to="/admin" className="dropdown-item text-primary-400" onClick={() => setShowDropdown(false)}>
                         <FiShield className="w-5 h-5" />
                         <span>Administration</span>
