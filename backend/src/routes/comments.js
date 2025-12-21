@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/database');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { logActivity, ACTIONS, ACTION_TYPES } = require('../middleware/activityLogger');
 
 // Get comments for a video
 router.get('/video/:videoId', optionalAuth, asyncHandler(async (req, res) => {
@@ -135,6 +136,16 @@ router.post('/video/:videoId', authenticate, asyncHandler(async (req, res) => {
     }
   }
 
+  // Log comment
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.ADD_COMMENT,
+    actionType: ACTION_TYPES.COMMENT,
+    targetType: 'video',
+    targetId: videoId,
+    details: { commentId, isReply: !!parentId }
+  }, req);
+
   res.status(201).json({
     id: commentId,
     content: content.trim(),
@@ -185,6 +196,16 @@ router.delete('/:id', authenticate, asyncHandler(async (req, res) => {
   if (comment.parent_id) {
     await query('UPDATE comments SET reply_count = reply_count - 1 WHERE id = ?', [comment.parent_id]);
   }
+
+  // Log deletion
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.DELETE_COMMENT,
+    actionType: ACTION_TYPES.COMMENT,
+    targetType: 'comment',
+    targetId: id,
+    details: { videoId: comment.video_id }
+  }, req);
 
   res.json({ message: 'Commentaire supprimé' });
 }));

@@ -5,7 +5,8 @@ import {
   FiHardDrive, FiTrendingUp, FiUserCheck, FiEye, FiPieChart,
   FiGlobe, FiMonitor, FiSmartphone, FiSearch, FiEdit, FiTrash2, 
   FiToggleLeft, FiToggleRight, FiPlus, FiX, FiRefreshCw, FiArrowLeft,
-  FiMenu, FiBell, FiLogOut, FiClock, FiExternalLink, FiUpload, FiLink
+  FiMenu, FiBell, FiLogOut, FiClock, FiExternalLink, FiUpload, FiLink,
+  FiDownload, FiShield
 } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
 import usePlatformStore from '../store/platformStore'
@@ -101,9 +102,10 @@ export default function Admin() {
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-2 hover:bg-dark-800 rounded-lg">
             <FiMenu className="w-5 h-5" />
           </button>
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-semibold text-sm sm:text-base">Admin</span>
-          </Link>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
+            <FiShield className="w-5 h-5 text-primary-500" />
+            <span className="font-semibold text-sm sm:text-base">Administration</span>
+          </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
           <Link to="/" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-dark-800 hover:bg-dark-700 rounded-lg text-xs sm:text-sm">
@@ -1733,20 +1735,24 @@ const AdminLogs = () => {
   const [stats, setStats] = useState(null)
   const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 1 })
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
+  const [selectedLog, setSelectedLog] = useState(null)
   const [filters, setFilters] = useState({
     action_type: '',
+    action: '',
     search: '',
     date_from: '',
     date_to: ''
   })
 
-  useEffect(() => { fetchLogs() }, [pagination.page, filters])
+  useEffect(() => { fetchLogs() }, [pagination.page])
 
   const fetchLogs = async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({ page: pagination.page, limit: 50 })
       if (filters.action_type) params.append('action_type', filters.action_type)
+      if (filters.action) params.append('action', filters.action)
       if (filters.search) params.append('search', filters.search)
       if (filters.date_from) params.append('date_from', filters.date_from)
       if (filters.date_to) params.append('date_to', filters.date_to)
@@ -1759,14 +1765,92 @@ const AdminLogs = () => {
     finally { setLoading(false) }
   }
 
+  const applyFilters = () => {
+    setPagination(p => ({ ...p, page: 1 }))
+    fetchLogs()
+  }
+
+  const clearFilters = () => {
+    setFilters({ action_type: '', action: '', search: '', date_from: '', date_to: '' })
+    setPagination(p => ({ ...p, page: 1 }))
+    setTimeout(fetchLogs, 0)
+  }
+
+  const exportCSV = async () => {
+    setExporting(true)
+    try {
+      const params = new URLSearchParams({ limit: 10000 })
+      if (filters.action_type) params.append('action_type', filters.action_type)
+      if (filters.action) params.append('action', filters.action)
+      if (filters.search) params.append('search', filters.search)
+      if (filters.date_from) params.append('date_from', filters.date_from)
+      if (filters.date_to) params.append('date_to', filters.date_to)
+      
+      const res = await api.get(`/admin/logs?${params}`)
+      const data = res.data.logs || []
+      
+      // Generate CSV
+      const headers = ['Date', 'Utilisateur', 'Email', 'Rôle', 'Action', 'Type', 'Cible Type', 'Cible ID', 'IP', 'User Agent', 'Détails']
+      const rows = data.map(log => [
+        new Date(log.created_at).toISOString(),
+        log.username || 'Système',
+        log.email || '',
+        log.user_role || '',
+        log.action,
+        log.action_type,
+        log.target_type || '',
+        log.target_id || '',
+        log.ip_address || '',
+        (log.user_agent || '').replace(/"/g, '""'),
+        JSON.stringify(log.details || {}).replace(/"/g, '""')
+      ])
+      
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n')
+      
+      // Download
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `logs_${new Date().toISOString().split('T')[0]}.csv`
+      link.click()
+    } catch (e) { 
+      console.error(e)
+      alert('Erreur lors de l\'export')
+    }
+    finally { setExporting(false) }
+  }
+
   const actionTypeLabels = {
     auth: 'Authentification',
     video: 'Vidéos',
     channel: 'Chaînes',
     comment: 'Commentaires',
-    admin: 'Admin',
+    admin: 'Administration',
     user: 'Utilisateur',
     system: 'Système'
+  }
+
+  const actionLabels = {
+    login: 'Connexion',
+    logout: 'Déconnexion',
+    register: 'Inscription',
+    upload_video: 'Upload vidéo',
+    delete_video: 'Suppression vidéo',
+    update_video: 'Modification vidéo',
+    add_comment: 'Ajout commentaire',
+    delete_comment: 'Suppression commentaire',
+    subscribe: 'Abonnement',
+    unsubscribe: 'Désabonnement',
+    like_video: 'Like vidéo',
+    dislike_video: 'Dislike vidéo',
+    admin_update_user: 'Modif. utilisateur',
+    admin_delete_user: 'Suppression utilisateur',
+    admin_delete_video: 'Suppression vidéo (admin)',
+    admin_verify_user: 'Vérification utilisateur',
+    admin_handle_report: 'Traitement signalement'
   }
 
   const actionTypeColors = {
@@ -1782,29 +1866,46 @@ const AdminLogs = () => {
   const formatDate = (date) => {
     return new Date(date).toLocaleString('fr-FR', {
       day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
     })
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <h1 className="text-2xl font-bold">Logs d'activité</h1>
-        <button onClick={fetchLogs} disabled={loading} className="px-4 py-2 bg-dark-700 hover:bg-dark-600 rounded-lg flex items-center gap-2">
-          <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div>
+          <h1 className="text-2xl font-bold">Logs d'activité</h1>
+          <p className="text-dark-400 text-sm">{pagination.total} entrées au total</p>
+        </div>
+        <div className="flex gap-2">
+          <button 
+            onClick={exportCSV} 
+            disabled={exporting} 
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg flex items-center gap-2 text-sm"
+          >
+            <FiDownload className={`w-4 h-4 ${exporting ? 'animate-pulse' : ''}`} />
+            {exporting ? 'Export...' : 'Export CSV'}
+          </button>
+          <button onClick={fetchLogs} disabled={loading} className="px-4 py-2 bg-dark-700 hover:bg-dark-600 rounded-lg">
+            <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
-            <p className="text-dark-400 text-sm">Aujourd'hui</p>
+            <p className="text-dark-400 text-xs mb-1">Aujourd'hui</p>
             <p className="text-2xl font-bold">{stats.todayCount || 0}</p>
+          </div>
+          <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+            <p className="text-dark-400 text-xs mb-1">Cette semaine</p>
+            <p className="text-2xl font-bold">{stats.weekCount || 0}</p>
           </div>
           {stats.actionTypes?.slice(0, 3).map(at => (
             <div key={at.action_type} className="bg-dark-800 rounded-xl border border-dark-700 p-4">
-              <p className="text-dark-400 text-sm">{actionTypeLabels[at.action_type] || at.action_type}</p>
+              <p className="text-dark-400 text-xs mb-1">{actionTypeLabels[at.action_type] || at.action_type}</p>
               <p className="text-2xl font-bold">{at.count}</p>
             </div>
           ))}
@@ -1813,36 +1914,57 @@ const AdminLogs = () => {
 
       {/* Filters */}
       <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
-        <div className="flex flex-wrap gap-3">
-          <input
-            type="text"
-            placeholder="Rechercher..."
-            value={filters.search}
-            onChange={e => setFilters({ ...filters, search: e.target.value })}
-            className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg flex-1 min-w-[200px]"
-          />
-          <select
-            value={filters.action_type}
-            onChange={e => setFilters({ ...filters, action_type: e.target.value })}
-            className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
-          >
-            <option value="">Tous les types</option>
-            {Object.entries(actionTypeLabels).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
-          <input
-            type="date"
-            value={filters.date_from}
-            onChange={e => setFilters({ ...filters, date_from: e.target.value })}
-            className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
-          />
-          <input
-            type="date"
-            value={filters.date_to}
-            onChange={e => setFilters({ ...filters, date_to: e.target.value })}
-            className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          <div className="lg:col-span-2">
+            <label className="block text-xs text-dark-400 mb-1">Recherche</label>
+            <input
+              type="text"
+              placeholder="Utilisateur, action, IP..."
+              value={filters.search}
+              onChange={e => setFilters({ ...filters, search: e.target.value })}
+              onKeyDown={e => e.key === 'Enter' && applyFilters()}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-dark-400 mb-1">Type</label>
+            <select
+              value={filters.action_type}
+              onChange={e => setFilters({ ...filters, action_type: e.target.value })}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-sm"
+            >
+              <option value="">Tous</option>
+              {Object.entries(actionTypeLabels).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-dark-400 mb-1">Date début</label>
+            <input
+              type="date"
+              value={filters.date_from}
+              onChange={e => setFilters({ ...filters, date_from: e.target.value })}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-sm [color-scheme:dark]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-dark-400 mb-1">Date fin</label>
+            <input
+              type="date"
+              value={filters.date_to}
+              onChange={e => setFilters({ ...filters, date_to: e.target.value })}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-sm [color-scheme:dark]"
+            />
+          </div>
+          <div className="flex items-end gap-2">
+            <button onClick={applyFilters} className="flex-1 px-4 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg text-sm">
+              Filtrer
+            </button>
+            <button onClick={clearFilters} className="px-3 py-2 bg-dark-600 hover:bg-dark-500 rounded-lg text-sm" title="Réinitialiser">
+              <FiX className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1854,42 +1976,55 @@ const AdminLogs = () => {
           <div className="text-center py-12 text-dark-400">Aucun log trouvé</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px]">
+            <table className="w-full min-w-[900px]">
               <thead className="bg-dark-700/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm">Date</th>
-                  <th className="px-4 py-3 text-left text-sm">Utilisateur</th>
-                  <th className="px-4 py-3 text-left text-sm">Action</th>
-                  <th className="px-4 py-3 text-left text-sm">Type</th>
-                  <th className="px-4 py-3 text-left text-sm">Cible</th>
-                  <th className="px-4 py-3 text-left text-sm">IP</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-dark-300">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-dark-300">Utilisateur</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-dark-300">Action</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-dark-300">Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-dark-300">Cible</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-dark-300">IP</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-dark-300">Détails</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-700">
                 {logs.map(log => (
                   <tr key={log.id} className="hover:bg-dark-700/30">
-                    <td className="px-4 py-3 text-sm text-dark-400">{formatDate(log.created_at)}</td>
+                    <td className="px-4 py-3 text-xs text-dark-400 whitespace-nowrap">{formatDate(log.created_at)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center overflow-hidden">
-                          {log.avatar_url ? <img src={log.avatar_url} className="w-full h-full object-cover" /> : log.username?.charAt(0).toUpperCase()}
+                        <div className="w-7 h-7 rounded-full bg-dark-700 flex items-center justify-center overflow-hidden text-xs">
+                          {log.avatar_url ? <img src={log.avatar_url} className="w-full h-full object-cover" alt="" /> : (log.username?.charAt(0) || 'S').toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-medium text-sm">{log.username || 'Système'}</p>
-                          <p className="text-xs text-dark-500">{log.user_role}</p>
+                          <p className="font-medium text-xs">{log.username || 'Système'}</p>
+                          <p className="text-[10px] text-dark-500">{log.user_role || 'system'}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm">{log.action}</td>
+                    <td className="px-4 py-3 text-xs">{actionLabels[log.action] || log.action}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded text-xs ${actionTypeColors[log.action_type] || 'bg-dark-700 text-dark-400'}`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] ${actionTypeColors[log.action_type] || 'bg-dark-700 text-dark-400'}`}>
                         {actionTypeLabels[log.action_type] || log.action_type}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-dark-400">
-                      {log.target_type && <span>{log.target_type}: {log.target_id?.substring(0, 8)}...</span>}
+                    <td className="px-4 py-3 text-xs text-dark-400">
+                      {log.target_type ? (
+                        <span className="font-mono text-[10px]">{log.target_type}:{log.target_id?.substring(0, 8)}</span>
+                      ) : '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-dark-500">{log.ip_address}</td>
+                    <td className="px-4 py-3 text-xs text-dark-500 font-mono">{log.ip_address || '-'}</td>
+                    <td className="px-4 py-3 text-right">
+                      {log.details && Object.keys(log.details).length > 0 && (
+                        <button 
+                          onClick={() => setSelectedLog(log)}
+                          className="px-2 py-1 bg-dark-600 hover:bg-dark-500 rounded text-[10px]"
+                        >
+                          Voir
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1900,24 +2035,81 @@ const AdminLogs = () => {
 
       {/* Pagination */}
       {pagination.pages > 1 && (
-        <div className="flex justify-center gap-2">
-          <button
-            onClick={() => setPagination(p => ({ ...p, page: Math.max(1, p.page - 1) }))}
-            disabled={pagination.page === 1}
-            className="px-4 py-2 bg-dark-700 rounded-lg disabled:opacity-50"
-          >
-            Précédent
-          </button>
-          <span className="px-4 py-2 text-dark-400">
-            Page {pagination.page} / {pagination.pages}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-dark-400">
+            Affichage {((pagination.page - 1) * 50) + 1} - {Math.min(pagination.page * 50, pagination.total)} sur {pagination.total}
           </span>
-          <button
-            onClick={() => setPagination(p => ({ ...p, page: Math.min(p.pages, p.page + 1) }))}
-            disabled={pagination.page === pagination.pages}
-            className="px-4 py-2 bg-dark-700 rounded-lg disabled:opacity-50"
-          >
-            Suivant
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPagination(p => ({ ...p, page: Math.max(1, p.page - 1) }))}
+              disabled={pagination.page === 1}
+              className="px-4 py-2 bg-dark-700 rounded-lg disabled:opacity-50 text-sm"
+            >
+              Précédent
+            </button>
+            <span className="px-4 py-2 text-dark-400 text-sm">
+              {pagination.page} / {pagination.pages}
+            </span>
+            <button
+              onClick={() => setPagination(p => ({ ...p, page: Math.min(p.pages, p.page + 1) }))}
+              disabled={pagination.page === pagination.pages}
+              className="px-4 py-2 bg-dark-700 rounded-lg disabled:opacity-50 text-sm"
+            >
+              Suivant
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Log Details Modal */}
+      {selectedLog && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setSelectedLog(null)}>
+          <div className="bg-dark-800 rounded-xl border border-dark-700 w-full max-w-lg max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-dark-700">
+              <h3 className="font-semibold">Détails du log</h3>
+              <button onClick={() => setSelectedLog(null)} className="p-2 hover:bg-dark-700 rounded-lg">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3 overflow-y-auto max-h-[60vh]">
+              <div>
+                <p className="text-xs text-dark-400">Date</p>
+                <p className="text-sm">{formatDate(selectedLog.created_at)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-dark-400">Utilisateur</p>
+                <p className="text-sm">{selectedLog.username || 'Système'} ({selectedLog.user_role})</p>
+              </div>
+              <div>
+                <p className="text-xs text-dark-400">Action</p>
+                <p className="text-sm">{selectedLog.action} ({selectedLog.action_type})</p>
+              </div>
+              {selectedLog.target_type && (
+                <div>
+                  <p className="text-xs text-dark-400">Cible</p>
+                  <p className="text-sm font-mono">{selectedLog.target_type}: {selectedLog.target_id}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-dark-400">Adresse IP</p>
+                <p className="text-sm font-mono">{selectedLog.ip_address || '-'}</p>
+              </div>
+              {selectedLog.user_agent && (
+                <div>
+                  <p className="text-xs text-dark-400">User Agent</p>
+                  <p className="text-xs font-mono text-dark-300 break-all">{selectedLog.user_agent}</p>
+                </div>
+              )}
+              {selectedLog.details && Object.keys(selectedLog.details).length > 0 && (
+                <div>
+                  <p className="text-xs text-dark-400 mb-2">Données additionnelles</p>
+                  <pre className="text-xs bg-dark-900 p-3 rounded-lg overflow-x-auto">
+                    {JSON.stringify(selectedLog.details, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

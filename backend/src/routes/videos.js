@@ -9,6 +9,7 @@ const { authenticate, optionalAuth } = require('../middleware/auth');
 const { uploadVideo, uploadThumbnail } = require('../middleware/upload');
 const { asyncHandler } = require('../middleware/errorHandler');
 const videoProcessor = require('../services/videoProcessor');
+const { logActivity, ACTIONS, ACTION_TYPES } = require('../middleware/activityLogger');
 
 // Get all categories (public)
 router.get('/categories', asyncHandler(async (req, res) => {
@@ -255,6 +256,16 @@ router.post('/upload', authenticate, uploadVideo.single('video'), asyncHandler(a
       }
     }
 
+    // Log video upload
+    await logActivity({
+      userId: req.user.id,
+      action: ACTIONS.UPLOAD_VIDEO,
+      actionType: ACTION_TYPES.VIDEO,
+      targetType: 'video',
+      targetId: videoId,
+      details: { title: title || 'Sans titre', channelId, visibility }
+    }, req);
+
     res.status(201).json({
       message: 'Vidéo uploadée avec succès',
       video: {
@@ -379,6 +390,16 @@ router.delete('/:id', authenticate, asyncHandler(async (req, res) => {
 
   await query('UPDATE videos SET status = ? WHERE id = ?', ['deleted', id]);
   await query('UPDATE channels SET video_count = video_count - 1 WHERE id = ?', [videos[0].channel_id]);
+
+  // Log video deletion
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.DELETE_VIDEO,
+    actionType: ACTION_TYPES.VIDEO,
+    targetType: 'video',
+    targetId: id,
+    details: { title: videos[0].title, channelId: videos[0].channel_id }
+  }, req);
 
   res.json({ message: 'Vidéo supprimée' });
 }));
