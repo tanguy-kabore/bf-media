@@ -3,7 +3,7 @@ import { useIsMobile } from '../hooks/useMediaQuery'
 import api from '../services/api'
 import VideoCard from '../components/VideoCard'
 import AdBanner from '../components/AdBanner'
-import SponsoredVideoCard from '../components/SponsoredVideoCard'
+import SponsoredVideoCard, { getUserCountry } from '../components/SponsoredVideoCard'
 
 const categories = [
   { id: null, name: 'Tout' },
@@ -48,6 +48,9 @@ export default function Home() {
         position: 'in_feed',
         limit: '2'
       })
+      // Add country for targeting
+      const country = getUserCountry()
+      if (country) params.append('country', country)
       if (activeCategory) params.append('category', activeCategory)
       const response = await api.get(`/ads?${params}`)
       setSponsoredAds(response.data || [])

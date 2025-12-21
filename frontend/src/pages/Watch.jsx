@@ -39,6 +39,9 @@ export default function Watch() {
   const [showReportModal, setShowReportModal] = useState(false)
   const [showPreRollAd, setShowPreRollAd] = useState(true)
   const [adCompleted, setAdCompleted] = useState(false)
+  const [showMidRollAd, setShowMidRollAd] = useState(false)
+  const [midRollShown, setMidRollShown] = useState(false)
+  const midRollTimeRef = useRef(null)
   
   // Watch session tracking
   const [watchSessionId, setWatchSessionId] = useState(null)
@@ -512,6 +515,29 @@ export default function Watch() {
     }
   }
 
+  const handleMidRollComplete = () => {
+    setShowMidRollAd(false)
+    // Resume video playback
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {})
+    }
+  }
+
+  // Check for mid-roll ad trigger (at 50% of video)
+  const handleVideoTimeUpdate = () => {
+    if (!videoRef.current || midRollShown || showMidRollAd) return
+    
+    const currentTime = videoRef.current.currentTime
+    const duration = videoRef.current.duration
+    
+    // Show mid-roll at 50% of video (only for videos > 2 minutes)
+    if (duration > 120 && currentTime >= duration * 0.5 && !midRollShown) {
+      setMidRollShown(true)
+      setShowMidRollAd(true)
+      videoRef.current.pause()
+    }
+  }
+
   return (
     <>
       {/* Video player */}
@@ -526,12 +552,23 @@ export default function Watch() {
             />
           )}
           
+          {/* Mid-roll Ad */}
+          {showMidRollAd && (
+            <PreRollAd 
+              onComplete={handleMidRollComplete}
+              onSkip={handleMidRollComplete}
+              category={video.category_name}
+              position="mid_roll"
+            />
+          )}
+          
           <video
             ref={videoRef}
             src={video.video_url}
             poster={video.thumbnail_url}
             controls
             autoPlay={adCompleted}
+            onTimeUpdate={handleVideoTimeUpdate}
             className="w-full aspect-video object-contain max-h-[70vh]"
           />
         </div>

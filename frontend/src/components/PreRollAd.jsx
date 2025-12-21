@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { FiVolume2, FiVolumeX, FiExternalLink } from 'react-icons/fi'
 import api from '../services/api'
 
@@ -11,7 +11,33 @@ const getDeviceType = () => {
   return 'desktop'
 }
 
-export default function PreRollAd({ onComplete, onSkip, category = '' }) {
+// Get user's country from timezone or stored value
+const getUserCountry = () => {
+  // Check if we have a cached country
+  const cached = sessionStorage.getItem('user_country')
+  if (cached) return cached
+  
+  // Try to detect from timezone
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const tzCountryMap = {
+    'Africa/Ouagadougou': 'BF',
+    'Africa/Abidjan': 'CI',
+    'Africa/Bamako': 'ML',
+    'Africa/Dakar': 'SN',
+    'Africa/Niamey': 'NE',
+    'Africa/Lome': 'TG',
+    'Africa/Porto-Novo': 'BJ',
+    'Africa/Accra': 'GH',
+    'Europe/Paris': 'FR',
+    'America/New_York': 'US',
+    'America/Toronto': 'CA',
+    'Europe/Brussels': 'BE'
+  }
+  
+  return tzCountryMap[tz] || ''
+}
+
+export default function PreRollAd({ onComplete, onSkip, category = '', position = 'pre_roll' }) {
   const [ad, setAd] = useState(null)
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(5)
@@ -20,18 +46,46 @@ export default function PreRollAd({ onComplete, onSkip, category = '' }) {
   const [progress, setProgress] = useState(0)
   const videoRef = useRef(null)
   const impressionRecorded = useRef(false)
+  const countdownRef = useRef(null)
+  const imageTimerRef = useRef(null)
+  const hasCompleted = useRef(false)
+
+  const handleComplete = useCallback(() => {
+    if (hasCompleted.current) return
+    hasCompleted.current = true
+    if (countdownRef.current) clearInterval(countdownRef.current)
+    if (imageTimerRef.current) clearTimeout(imageTimerRef.current)
+    onComplete?.()
+  }, [onComplete])
+
+  const handleSkip = useCallback(() => {
+    if (canSkip && !hasCompleted.current) {
+      hasCompleted.current = true
+      if (countdownRef.current) clearInterval(countdownRef.current)
+      if (imageTimerRef.current) clearTimeout(imageTimerRef.current)
+      onSkip?.()
+    }
+  }, [canSkip, onSkip])
 
   useEffect(() => {
     fetchPreRollAd()
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current)
+      if (imageTimerRef.current) clearTimeout(imageTimerRef.current)
+    }
   }, [])
 
   const fetchPreRollAd = async () => {
     try {
       const params = new URLSearchParams({
-        position: 'pre_roll',
+        position: position,
         limit: '1',
         device: getDeviceType()
       })
+      
+      // Add country for targeting
+      const country = getUserCountry()
+      if (country) params.append('country', country)
       if (category) params.append('category', category)
       
       const res = await api.get(`/ads?${params}`)
@@ -41,82 +95,66 @@ export default function PreRollAd({ onComplete, onSkip, category = '' }) {
         // Record impression
         if (!impressionRecorded.current) {
           impressionRecorded.current = true
-          await api.post(`/ads/${res.data[0].id}/impression`)
+          api.post(`/ads/${res.data[0].id}/impression`).catch(() => {})
         }
       } else {
         // No ad available, proceed to video
-        onComplete?.()
+        handleComplete()
       }
     } catch (error) {
       console.error('Error fetching pre-roll ad:', error)
-      onComplete?.()
+      handleComplete()
     } finally {
       setLoading(false)
     }
   }
 
-  // Countdown timer
+  // Countdown timer - starts when ad is loaded
   useEffect(() => {
-    if (!ad || canSkip) return
+    if (!ad || canSkip || hasCompleted.current) return
 
-    const timer = setInterval(() => {
+    countdownRef.current = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
           setCanSkip(true)
-          clearInterval(timer)
+          if (countdownRef.current) clearInterval(countdownRef.current)
           return 0
         }
         return prev - 1
       })
     }, 1000)
 
-    return () => clearInterval(timer)
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current)
+    }
   }, [ad, canSkip])
 
   // Track video progress
   const handleTimeUpdate = () => {
-    if (videoRef.current) {
+    if (videoRef.current && !hasCompleted.current) {
       const percent = (videoRef.current.currentTime / videoRef.current.duration) * 100
       setProgress(percent)
-      
-      // Auto-complete when video ends
-      if (videoRef.current.currentTime >= videoRef.current.duration - 0.5) {
-        handleComplete()
-      }
     }
   }
 
-  const handleSkip = () => {
-    if (canSkip) {
-      onSkip?.()
-    }
-  }
-
-  const handleComplete = () => {
-    onComplete?.()
+  const handleVideoEnded = () => {
+    handleComplete()
   }
 
   const handleClick = async (e) => {
     e.preventDefault()
-    if (!ad) return
+    e.stopPropagation()
+    if (!ad || !ad.target_url) return
 
     let targetUrl = ad.target_url
     if (targetUrl && !targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
       targetUrl = 'https://' + targetUrl
     }
 
-    try {
-      const res = await api.post(`/ads/${ad.id}/click`)
-      if (res.data?.target_url) {
-        targetUrl = res.data.target_url
-        if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-          targetUrl = 'https://' + targetUrl
-        }
-      }
-    } catch (error) {
-      console.error('Click tracking error:', error)
-    }
+    // Track click
+    api.post(`/ads/${ad.id}/click`).catch(() => {})
 
+    // Open URL immediately
     if (targetUrl) {
       window.open(targetUrl, '_blank', 'noopener,noreferrer')
     }
@@ -144,23 +182,25 @@ export default function PreRollAd({ onComplete, onSkip, category = '' }) {
   return (
     <div className="absolute inset-0 bg-black z-50 flex flex-col">
       {/* Ad content */}
-      <div className="flex-1 relative flex items-center justify-center cursor-pointer" onClick={handleClick}>
+      <div className="flex-1 relative flex items-center justify-center">
         {isVideo ? (
           <video
             ref={videoRef}
             src={mediaUrl}
-            className="w-full h-full object-contain"
+            className="w-full h-full object-contain cursor-pointer"
             muted={muted}
             autoPlay
             playsInline
+            onClick={handleClick}
             onTimeUpdate={handleTimeUpdate}
-            onEnded={handleComplete}
+            onEnded={handleVideoEnded}
           />
         ) : (
           <img
             src={mediaUrl}
             alt={ad.title}
-            className="max-w-full max-h-full object-contain"
+            className="max-w-full max-h-full object-contain cursor-pointer"
+            onClick={handleClick}
           />
         )}
 

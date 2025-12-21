@@ -4,6 +4,32 @@ import api from '../services/api'
 
 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || window.location.origin
 
+// Get user's country from timezone
+const getUserCountry = () => {
+  const cached = sessionStorage.getItem('user_country')
+  if (cached) return cached
+  
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const tzCountryMap = {
+    'Africa/Ouagadougou': 'BF',
+    'Africa/Abidjan': 'CI',
+    'Africa/Bamako': 'ML',
+    'Africa/Dakar': 'SN',
+    'Africa/Niamey': 'NE',
+    'Africa/Lome': 'TG',
+    'Africa/Porto-Novo': 'BJ',
+    'Africa/Accra': 'GH',
+    'Europe/Paris': 'FR',
+    'America/New_York': 'US',
+    'America/Toronto': 'CA',
+    'Europe/Brussels': 'BE'
+  }
+  
+  return tzCountryMap[tz] || ''
+}
+
+export { getUserCountry }
+
 export default function SponsoredVideoCard({ ad, variant = 'grid', className = '' }) {
   const [muted, setMuted] = useState(true)
   const [isHovered, setIsHovered] = useState(false)
