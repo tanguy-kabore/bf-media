@@ -35,13 +35,24 @@ router.get('/channel', authenticate, asyncHandler(async (req, res) => {
     ORDER BY date ASC
   `, [channel.id, days]);
 
-  // Watch time
-  const [watchTime] = await query(`
-    SELECT SUM(watch_duration) as total_watch_time
+  // Watch time - combine from both video_views and watch_sessions
+  const [watchTimeViews] = await query(`
+    SELECT COALESCE(SUM(watch_duration), 0) as total
     FROM video_views vv
     JOIN videos v ON vv.video_id = v.id
     WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
   `, [channel.id, days]);
+  
+  const [watchTimeSessions] = await query(`
+    SELECT COALESCE(SUM(watch_duration), 0) as total
+    FROM watch_sessions ws
+    WHERE ws.channel_id = ? AND ws.started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+  `, [channel.id, days]);
+  
+  // Use the higher value (watch_sessions is more accurate when available)
+  const watchTime = { 
+    total_watch_time: Math.max(watchTimeViews.total || 0, watchTimeSessions.total || 0) 
+  };
 
   // Subscriber growth
   const subscriberGrowth = await query(`

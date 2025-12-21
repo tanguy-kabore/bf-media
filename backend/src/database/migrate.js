@@ -481,6 +481,67 @@ INSERT IGNORE INTO categories (name, slug, description, icon) VALUES
 ('Cuisine', 'food', 'Recettes et contenus culinaires', 'utensils'),
 ('Voyages', 'travel', 'Découvertes et aventures', 'plane'),
 ('Auto & Moto', 'automotive', 'Véhicules et mécanique', 'car');
+
+-- Watch sessions for recommendation algorithm
+CREATE TABLE IF NOT EXISTS watch_sessions (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  session_id VARCHAR(100) NOT NULL,
+  video_id VARCHAR(36) NOT NULL,
+  user_id VARCHAR(36),
+  channel_id VARCHAR(36) NOT NULL,
+  channel_owner_id VARCHAR(36) NOT NULL,
+  
+  -- Video metadata
+  video_title VARCHAR(255),
+  video_duration INT DEFAULT 0,
+  category_id INT,
+  category_name VARCHAR(100),
+  
+  -- Watch metrics
+  watch_duration INT DEFAULT 0,
+  watch_percentage DECIMAL(5,2) DEFAULT 0,
+  completed BOOLEAN DEFAULT FALSE,
+  
+  -- Engagement signals
+  liked BOOLEAN DEFAULT FALSE,
+  disliked BOOLEAN DEFAULT FALSE,
+  commented BOOLEAN DEFAULT FALSE,
+  shared BOOLEAN DEFAULT FALSE,
+  subscribed_after BOOLEAN DEFAULT FALSE,
+  
+  -- Session context
+  source VARCHAR(50),
+  referrer VARCHAR(500),
+  search_query VARCHAR(255),
+  previous_video_id VARCHAR(36),
+  
+  -- Device and location
+  device_type ENUM('desktop', 'mobile', 'tablet', 'tv', 'other') DEFAULT 'other',
+  browser VARCHAR(50),
+  os VARCHAR(50),
+  country VARCHAR(100),
+  city VARCHAR(100),
+  ip_address VARCHAR(45),
+  user_agent TEXT,
+  
+  -- Timestamps
+  started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  ended_at TIMESTAMP NULL,
+  last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE,
+  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+  INDEX idx_session_id (session_id),
+  INDEX idx_user_id (user_id),
+  INDEX idx_video_id (video_id),
+  INDEX idx_channel_id (channel_id),
+  INDEX idx_category_id (category_id),
+  INDEX idx_started_at (started_at),
+  INDEX idx_watch_percentage (watch_percentage),
+  INDEX idx_completed (completed)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `;
 
 async function runMigrations() {

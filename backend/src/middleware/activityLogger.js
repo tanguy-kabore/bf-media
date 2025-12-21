@@ -43,6 +43,7 @@ const ACTIONS = {
   DELETE_VIDEO: 'delete_video',
   UPDATE_VIDEO: 'update_video',
   PUBLISH_VIDEO: 'publish_video',
+  WATCH_VIDEO: 'watch_video',
   
   // Channel actions
   CREATE_CHANNEL: 'create_channel',

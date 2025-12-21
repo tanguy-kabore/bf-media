@@ -36,6 +36,14 @@ export default function Watch() {
   const [loadingPlaylists, setLoadingPlaylists] = useState(false)
   const [videoInPlaylists, setVideoInPlaylists] = useState([])
   const [showReportModal, setShowReportModal] = useState(false)
+  
+  // Watch session tracking
+  const [watchSessionId, setWatchSessionId] = useState(null)
+  const watchStartTimeRef = useRef(0)
+  const lastProgressUpdateRef = useRef(0)
+  const hasLikedRef = useRef(false)
+  const hasCommentedRef = useRef(false)
+  const hasSubscribedRef = useRef(false)
 
   useEffect(() => {
     if (id) {
@@ -43,6 +51,14 @@ export default function Watch() {
       fetchRelatedVideos()
       fetchComments()
       recordView()
+      startWatchSession()
+    }
+    
+    // Cleanup: end watch session when leaving
+    return () => {
+      if (watchSessionId) {
+        endWatchSession()
+      }
     }
   }, [id])
 
@@ -90,6 +106,145 @@ export default function Watch() {
     }
   }
 
+  // Start watch session when video loads
+  const startWatchSession = async () => {
+    try {
+      const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      const response = await api.post(`/videos/${id}/watch/start`, {
+        sessionId,
+        source: document.referrer?.includes('search') ? 'search' : 'browse',
+        searchQuery: new URLSearchParams(window.location.search).get('q'),
+        previousVideoId: sessionStorage.getItem('lastVideoId')
+      })
+      setWatchSessionId(response.data.watchSessionId || sessionId)
+      watchStartTimeRef.current = Date.now()
+      sessionStorage.setItem('lastVideoId', id)
+    } catch (error) {
+      console.error('Error starting watch session:', error)
+    }
+  }
+
+  // Update watch progress periodically
+  const updateWatchProgress = async () => {
+    if (!watchSessionId || !videoRef.current) return
+    
+    const currentTime = videoRef.current.currentTime || 0
+    const duration = videoRef.current.duration || 1
+    const watchDuration = Math.floor(currentTime)
+    const watchPercentage = Math.min(100, (currentTime / duration) * 100)
+    
+    // Only update if at least 5 seconds have passed since last update
+    if (watchDuration - lastProgressUpdateRef.current < 5) return
+    lastProgressUpdateRef.current = watchDuration
+    
+    try {
+      await api.post(`/videos/${id}/watch/progress`, {
+        sessionId: watchSessionId,
+        watchDuration,
+        watchPercentage
+      })
+      
+      // Also update watch history
+      if (isAuthenticated) {
+        await api.post('/users/history/watch', { 
+          videoId: id, 
+          watchTime: watchDuration, 
+          progressPercent: watchPercentage 
+        })
+      }
+    } catch (error) {
+      console.error('Error updating watch progress:', error)
+    }
+  }
+
+  // End watch session when leaving
+  const endWatchSession = async () => {
+    if (!watchSessionId) return
+    
+    const currentTime = videoRef.current?.currentTime || 0
+    const duration = videoRef.current?.duration || 1
+    const watchDuration = Math.floor(currentTime)
+    const watchPercentage = Math.min(100, (currentTime / duration) * 100)
+    
+    try {
+      // Use sendBeacon for reliability when page is closing
+      const data = JSON.stringify({
+        sessionId: watchSessionId,
+        watchDuration,
+        watchPercentage,
+        liked: hasLikedRef.current,
+        commented: hasCommentedRef.current,
+        subscribedAfter: hasSubscribedRef.current
+      })
+      
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(
+          `${import.meta.env.VITE_API_URL || ''}/api/videos/${id}/watch/end`,
+          new Blob([data], { type: 'application/json' })
+        )
+      } else {
+        await api.post(`/videos/${id}/watch/end`, JSON.parse(data))
+      }
+    } catch (error) {
+      console.error('Error ending watch session:', error)
+    }
+  }
+
+  // Set up video time tracking
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const handleTimeUpdate = () => {
+      updateWatchProgress()
+    }
+
+    const handlePlay = () => {
+      watchStartTimeRef.current = Date.now()
+    }
+
+    const handlePause = () => {
+      updateWatchProgress()
+    }
+
+    const handleEnded = () => {
+      updateWatchProgress()
+    }
+
+    video.addEventListener('timeupdate', handleTimeUpdate)
+    video.addEventListener('play', handlePlay)
+    video.addEventListener('pause', handlePause)
+    video.addEventListener('ended', handleEnded)
+
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate)
+      video.removeEventListener('play', handlePlay)
+      video.removeEventListener('pause', handlePause)
+      video.removeEventListener('ended', handleEnded)
+    }
+  }, [watchSessionId, id])
+
+  // Handle page visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        updateWatchProgress()
+      }
+    }
+
+    const handleBeforeUnload = () => {
+      endWatchSession()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [watchSessionId, id])
+
   const handleReaction = async (reaction) => {
     if (!isAuthenticated) {
       toast.error('Connectez-vous pour réagir')
@@ -100,6 +255,8 @@ export default function Watch() {
       const response = await api.post(`/videos/${id}/react`, { reaction: newReaction })
       setVideo(prev => ({ ...prev, like_count: response.data.likeCount, dislike_count: response.data.dislikeCount }))
       setUserReaction(newReaction === 'none' ? null : newReaction)
+      // Track engagement for watch session
+      if (newReaction === 'like') hasLikedRef.current = true
     } catch (error) {
       toast.error('Erreur')
     }
@@ -119,6 +276,8 @@ export default function Watch() {
         await api.post(`/subscriptions/${video.channel_id}`)
         setIsSubscribed(true)
         toast.success('Abonné !')
+        // Track engagement for watch session
+        hasSubscribedRef.current = true
       }
     } catch (error) {
       toast.error('Erreur')
@@ -133,6 +292,8 @@ export default function Watch() {
       setComments(prev => [response.data, ...prev])
       setNewComment('')
       toast.success('Commentaire ajouté')
+      // Track engagement for watch session
+      hasCommentedRef.current = true
     } catch (error) {
       toast.error('Erreur')
     }

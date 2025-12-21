@@ -558,6 +558,130 @@ router.post('/:id/view', optionalAuth, asyncHandler(async (req, res) => {
   res.json({ success: true });
 }));
 
+// Start watch session - called when video starts playing
+router.post('/:id/watch/start', optionalAuth, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { sessionId, source, searchQuery, previousVideoId } = req.body;
+  const userAgent = req.headers['user-agent'] || '';
+  const { browser, os, deviceType } = parseUserAgent(userAgent);
+  const country = await getCountryFromIP(req.ip);
+
+  // Get video details with channel and category info
+  const [video] = await query(`
+    SELECT v.id, v.title, v.duration, v.channel_id, v.category_id,
+           c.user_id as channel_owner_id, c.name as channel_name,
+           cat.name as category_name
+    FROM videos v
+    JOIN channels c ON v.channel_id = c.id
+    LEFT JOIN categories cat ON v.category_id = cat.id
+    WHERE v.id = ?
+  `, [id]);
+
+  if (!video) {
+    return res.status(404).json({ error: 'Vidéo non trouvée' });
+  }
+
+  const watchSessionId = sessionId || `${req.ip}-${Date.now()}`;
+
+  // Create watch session
+  await query(`
+    INSERT INTO watch_sessions (
+      session_id, video_id, user_id, channel_id, channel_owner_id,
+      video_title, video_duration, category_id, category_name,
+      source, referrer, search_query, previous_video_id,
+      device_type, browser, os, country, ip_address, user_agent
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [
+    watchSessionId, id, req.user?.id || null, video.channel_id, video.channel_owner_id,
+    video.title, video.duration || 0, video.category_id, video.category_name,
+    source || 'direct', req.headers['referer'] || null, searchQuery || null, previousVideoId || null,
+    deviceType, browser, os, country, req.ip, userAgent
+  ]);
+
+  res.json({ success: true, watchSessionId });
+}));
+
+// Update watch progress - called periodically while watching
+router.post('/:id/watch/progress', optionalAuth, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { sessionId, watchDuration, watchPercentage } = req.body;
+
+  if (!sessionId) {
+    return res.status(400).json({ error: 'Session ID requis' });
+  }
+
+  const completed = watchPercentage >= 90;
+
+  // Update watch session
+  await query(`
+    UPDATE watch_sessions 
+    SET watch_duration = ?, watch_percentage = ?, completed = ?, last_updated = NOW()
+    WHERE session_id = ? AND video_id = ?
+  `, [watchDuration || 0, watchPercentage || 0, completed, sessionId, id]);
+
+  // Also update video_views for analytics compatibility
+  await query(`
+    UPDATE video_views 
+    SET watch_duration = ?
+    WHERE session_id = ? AND video_id = ?
+    ORDER BY viewed_at DESC LIMIT 1
+  `, [watchDuration || 0, sessionId, id]);
+
+  res.json({ success: true });
+}));
+
+// End watch session - called when user leaves video
+router.post('/:id/watch/end', optionalAuth, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { sessionId, watchDuration, watchPercentage, liked, commented, shared, subscribedAfter } = req.body;
+
+  if (!sessionId) {
+    return res.status(400).json({ error: 'Session ID requis' });
+  }
+
+  const completed = watchPercentage >= 90;
+
+  // Update watch session with final data
+  await query(`
+    UPDATE watch_sessions 
+    SET watch_duration = ?, watch_percentage = ?, completed = ?,
+        liked = ?, commented = ?, shared = ?, subscribed_after = ?,
+        ended_at = NOW()
+    WHERE session_id = ? AND video_id = ?
+  `, [
+    watchDuration || 0, watchPercentage || 0, completed,
+    liked || false, commented || false, shared || false, subscribedAfter || false,
+    sessionId, id
+  ]);
+
+  // Update video_views watch_duration
+  await query(`
+    UPDATE video_views 
+    SET watch_duration = ?
+    WHERE session_id = ? AND video_id = ?
+    ORDER BY viewed_at DESC LIMIT 1
+  `, [watchDuration || 0, sessionId, id]);
+
+  // Log for activity
+  if (req.user) {
+    await logActivity({
+      userId: req.user.id,
+      action: ACTIONS.WATCH_VIDEO,
+      actionType: ACTION_TYPES.VIDEO,
+      targetType: 'video',
+      targetId: id,
+      details: { 
+        watchDuration, 
+        watchPercentage, 
+        completed,
+        sessionId
+      }
+    }, req);
+  }
+
+  res.json({ success: true });
+}));
+
 // Report a video
 router.post('/:id/report', authenticate, asyncHandler(async (req, res) => {
   const { id } = req.params;
