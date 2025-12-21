@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
-const { authenticate, isAdmin, isModerator } = require('../middleware/auth');
+const { authenticate, isAdmin, isSuperAdmin, isModerator } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { logActivity, ACTIONS, ACTION_TYPES } = require('../middleware/activityLogger');
 
 // Get dashboard stats
 router.get('/dashboard', authenticate, isAdmin, asyncHandler(async (req, res) => {
@@ -812,7 +813,288 @@ router.delete('/verifications/badge/:userId', authenticate, isAdmin, asyncHandle
   await query(`UPDATE channels SET is_verified = 0 WHERE user_id = ?`, [userId]);
   await query(`UPDATE users SET verification_badge = 0, verified_at = NULL WHERE id = ?`, [userId]).catch(() => {});
 
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.ADMIN_VERIFY_USER,
+    actionType: ACTION_TYPES.ADMIN,
+    targetType: 'user',
+    targetId: userId,
+    details: { action: 'revoke_badge' }
+  }, req);
+
   res.json({ message: 'Badge de vérification retiré' });
+}));
+
+// ==================== ACTIVITY LOGS ====================
+
+// Get activity logs with filters
+router.get('/logs', authenticate, isAdmin, asyncHandler(async (req, res) => {
+  const { 
+    page = 1, 
+    limit = 50, 
+    action_type, 
+    action, 
+    user_id, 
+    target_type,
+    date_from,
+    date_to,
+    search 
+  } = req.query;
+  
+  const offset = (page - 1) * limit;
+  let whereClause = '1=1';
+  const params = [];
+
+  if (action_type) {
+    whereClause += ' AND l.action_type = ?';
+    params.push(action_type);
+  }
+
+  if (action) {
+    whereClause += ' AND l.action LIKE ?';
+    params.push(`%${action}%`);
+  }
+
+  if (user_id) {
+    whereClause += ' AND l.user_id = ?';
+    params.push(user_id);
+  }
+
+  if (target_type) {
+    whereClause += ' AND l.target_type = ?';
+    params.push(target_type);
+  }
+
+  if (date_from) {
+    whereClause += ' AND l.created_at >= ?';
+    params.push(date_from);
+  }
+
+  if (date_to) {
+    whereClause += ' AND l.created_at <= ?';
+    params.push(date_to + ' 23:59:59');
+  }
+
+  if (search) {
+    whereClause += ' AND (u.username LIKE ? OR u.email LIKE ? OR l.action LIKE ?)';
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  }
+
+  const logs = await query(`
+    SELECT l.*, 
+           u.username, u.display_name, u.email, u.avatar_url, u.role as user_role
+    FROM activity_logs l
+    LEFT JOIN users u ON l.user_id = u.id
+    WHERE ${whereClause}
+    ORDER BY l.created_at DESC
+    LIMIT ? OFFSET ?
+  `, [...params, parseInt(limit), parseInt(offset)]);
+
+  const [{ total }] = await query(`
+    SELECT COUNT(*) as total 
+    FROM activity_logs l
+    LEFT JOIN users u ON l.user_id = u.id
+    WHERE ${whereClause}
+  `, params);
+
+  // Get stats
+  const [todayCount] = await query(`
+    SELECT COUNT(*) as count FROM activity_logs 
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+  `);
+
+  const actionTypeStats = await query(`
+    SELECT action_type, COUNT(*) as count 
+    FROM activity_logs 
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    GROUP BY action_type
+  `);
+
+  res.json({
+    logs,
+    pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / limit) },
+    stats: {
+      todayCount: todayCount.count,
+      actionTypes: actionTypeStats
+    }
+  });
+}));
+
+// Get log details
+router.get('/logs/:id', authenticate, isAdmin, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const [log] = await query(`
+    SELECT l.*, 
+           u.username, u.display_name, u.email, u.avatar_url, u.role as user_role
+    FROM activity_logs l
+    LEFT JOIN users u ON l.user_id = u.id
+    WHERE l.id = ?
+  `, [id]);
+
+  if (!log) {
+    return res.status(404).json({ error: 'Log non trouvé' });
+  }
+
+  res.json(log);
+}));
+
+// Export logs (superadmin only)
+router.get('/logs/export', authenticate, isSuperAdmin, asyncHandler(async (req, res) => {
+  const { date_from, date_to, action_type } = req.query;
+  
+  let whereClause = '1=1';
+  const params = [];
+
+  if (action_type) {
+    whereClause += ' AND l.action_type = ?';
+    params.push(action_type);
+  }
+
+  if (date_from) {
+    whereClause += ' AND l.created_at >= ?';
+    params.push(date_from);
+  }
+
+  if (date_to) {
+    whereClause += ' AND l.created_at <= ?';
+    params.push(date_to + ' 23:59:59');
+  }
+
+  const logs = await query(`
+    SELECT l.created_at, u.username, u.email, l.action, l.action_type, 
+           l.target_type, l.target_id, l.ip_address, l.details
+    FROM activity_logs l
+    LEFT JOIN users u ON l.user_id = u.id
+    WHERE ${whereClause}
+    ORDER BY l.created_at DESC
+    LIMIT 10000
+  `, params);
+
+  res.json(logs);
+}));
+
+// ==================== SUPERADMIN: ADMIN MANAGEMENT ====================
+
+// Get all admins (superadmin only)
+router.get('/admins', authenticate, isSuperAdmin, asyncHandler(async (req, res) => {
+  const admins = await query(`
+    SELECT id, email, username, display_name, avatar_url, role, 
+           is_verified, is_active, created_at, last_login
+    FROM users 
+    WHERE role IN ('admin', 'superadmin')
+    ORDER BY role DESC, created_at DESC
+  `);
+
+  res.json(admins);
+}));
+
+// Update admin (superadmin only)
+router.patch('/admins/:id', authenticate, isSuperAdmin, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { role, isActive } = req.body;
+
+  // Cannot modify yourself
+  if (id === req.user.id) {
+    return res.status(400).json({ error: 'Vous ne pouvez pas modifier votre propre compte' });
+  }
+
+  // Get target user
+  const [targetUser] = await query('SELECT role FROM users WHERE id = ?', [id]);
+  if (!targetUser) {
+    return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  }
+
+  // Cannot demote another superadmin unless you're also superadmin (already checked)
+  const updates = [];
+  const params = [];
+
+  if (role && ['user', 'creator', 'moderator', 'admin'].includes(role)) {
+    updates.push('role = ?');
+    params.push(role);
+  }
+
+  if (isActive !== undefined) {
+    updates.push('is_active = ?');
+    params.push(isActive ? 1 : 0);
+  }
+
+  if (updates.length > 0) {
+    params.push(id);
+    await query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+  }
+
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.ADMIN_UPDATE_USER,
+    actionType: ACTION_TYPES.ADMIN,
+    targetType: 'user',
+    targetId: id,
+    details: { role, isActive, previousRole: targetUser.role }
+  }, req);
+
+  res.json({ message: 'Administrateur mis à jour' });
+}));
+
+// Delete admin (superadmin only)
+router.delete('/admins/:id', authenticate, isSuperAdmin, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Cannot delete yourself
+  if (id === req.user.id) {
+    return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
+  }
+
+  // Get target user info for logging
+  const [targetUser] = await query('SELECT username, role FROM users WHERE id = ?', [id]);
+  if (!targetUser) {
+    return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  }
+
+  // Cannot delete another superadmin
+  if (targetUser.role === 'superadmin') {
+    return res.status(403).json({ error: 'Impossible de supprimer un superadmin' });
+  }
+
+  await query('DELETE FROM users WHERE id = ?', [id]);
+
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.ADMIN_DELETE_USER,
+    actionType: ACTION_TYPES.ADMIN,
+    targetType: 'user',
+    targetId: id,
+    details: { deletedUsername: targetUser.username, deletedRole: targetUser.role }
+  }, req);
+
+  res.json({ message: 'Administrateur supprimé' });
+}));
+
+// Promote user to admin (superadmin only)
+router.post('/admins/promote/:userId', authenticate, isSuperAdmin, asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  const [user] = await query('SELECT username, role FROM users WHERE id = ?', [userId]);
+  if (!user) {
+    return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  }
+
+  if (user.role === 'admin' || user.role === 'superadmin') {
+    return res.status(400).json({ error: 'Cet utilisateur est déjà admin' });
+  }
+
+  await query('UPDATE users SET role = ? WHERE id = ?', ['admin', userId]);
+
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.ADMIN_UPDATE_USER,
+    actionType: ACTION_TYPES.ADMIN,
+    targetType: 'user',
+    targetId: userId,
+    details: { action: 'promote_to_admin', previousRole: user.role }
+  }, req);
+
+  res.json({ message: 'Utilisateur promu administrateur' });
 }));
 
 module.exports = router;

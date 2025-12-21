@@ -58,7 +58,7 @@ export default function Admin() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') {
+    if (!user || !['admin', 'superadmin'].includes(user.role)) {
       navigate('/')
     }
   }, [user, navigate])
@@ -72,7 +72,9 @@ export default function Admin() {
     }
   }, [location])
 
-  if (!user || user.role !== 'admin') return null
+  if (!user || !['admin', 'superadmin'].includes(user.role)) return null
+
+  const isSuperAdmin = user.role === 'superadmin'
 
   const tabs = [
     { id: 'dashboard', icon: FiHome, label: 'Dashboard' },
@@ -81,6 +83,8 @@ export default function Admin() {
     { id: 'reports', icon: FiFlag, label: 'Signalements' },
     { id: 'verifications', icon: FiUserCheck, label: 'Vérifications' },
     { id: 'ads', icon: FiDollarSign, label: 'Publicités' },
+    { id: 'logs', icon: FiClock, label: 'Logs activité' },
+    ...(isSuperAdmin ? [{ id: 'admins', icon: FiUserCheck, label: 'Admins' }] : []),
     { id: 'settings', icon: FiSettings, label: 'Paramètres' }
   ]
 
@@ -164,6 +168,8 @@ export default function Admin() {
             {activeTab === 'reports' && <AdminReports />}
             {activeTab === 'verifications' && <AdminVerifications />}
             {activeTab === 'ads' && <AdminAds />}
+            {activeTab === 'logs' && <AdminLogs />}
+            {activeTab === 'admins' && isSuperAdmin && <AdminAdmins />}
             {activeTab === 'settings' && <AdminSettings />}
           </div>
         </main>
@@ -1717,6 +1723,390 @@ const AdminSettings = () => {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Activity Logs
+const AdminLogs = () => {
+  const [logs, setLogs] = useState([])
+  const [stats, setStats] = useState(null)
+  const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 1 })
+  const [loading, setLoading] = useState(true)
+  const [filters, setFilters] = useState({
+    action_type: '',
+    search: '',
+    date_from: '',
+    date_to: ''
+  })
+
+  useEffect(() => { fetchLogs() }, [pagination.page, filters])
+
+  const fetchLogs = async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ page: pagination.page, limit: 50 })
+      if (filters.action_type) params.append('action_type', filters.action_type)
+      if (filters.search) params.append('search', filters.search)
+      if (filters.date_from) params.append('date_from', filters.date_from)
+      if (filters.date_to) params.append('date_to', filters.date_to)
+      
+      const res = await api.get(`/admin/logs?${params}`)
+      setLogs(res.data.logs || [])
+      setPagination(res.data.pagination || { page: 1, total: 0, pages: 1 })
+      setStats(res.data.stats)
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+
+  const actionTypeLabels = {
+    auth: 'Authentification',
+    video: 'Vidéos',
+    channel: 'Chaînes',
+    comment: 'Commentaires',
+    admin: 'Admin',
+    user: 'Utilisateur',
+    system: 'Système'
+  }
+
+  const actionTypeColors = {
+    auth: 'bg-blue-500/20 text-blue-400',
+    video: 'bg-purple-500/20 text-purple-400',
+    channel: 'bg-green-500/20 text-green-400',
+    comment: 'bg-yellow-500/20 text-yellow-400',
+    admin: 'bg-red-500/20 text-red-400',
+    user: 'bg-cyan-500/20 text-cyan-400',
+    system: 'bg-gray-500/20 text-gray-400'
+  }
+
+  const formatDate = (date) => {
+    return new Date(date).toLocaleString('fr-FR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    })
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <h1 className="text-2xl font-bold">Logs d'activité</h1>
+        <button onClick={fetchLogs} disabled={loading} className="px-4 py-2 bg-dark-700 hover:bg-dark-600 rounded-lg flex items-center gap-2">
+          <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      {/* Stats */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+            <p className="text-dark-400 text-sm">Aujourd'hui</p>
+            <p className="text-2xl font-bold">{stats.todayCount || 0}</p>
+          </div>
+          {stats.actionTypes?.slice(0, 3).map(at => (
+            <div key={at.action_type} className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+              <p className="text-dark-400 text-sm">{actionTypeLabels[at.action_type] || at.action_type}</p>
+              <p className="text-2xl font-bold">{at.count}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+        <div className="flex flex-wrap gap-3">
+          <input
+            type="text"
+            placeholder="Rechercher..."
+            value={filters.search}
+            onChange={e => setFilters({ ...filters, search: e.target.value })}
+            className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg flex-1 min-w-[200px]"
+          />
+          <select
+            value={filters.action_type}
+            onChange={e => setFilters({ ...filters, action_type: e.target.value })}
+            className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
+          >
+            <option value="">Tous les types</option>
+            {Object.entries(actionTypeLabels).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={filters.date_from}
+            onChange={e => setFilters({ ...filters, date_from: e.target.value })}
+            className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
+          />
+          <input
+            type="date"
+            value={filters.date_to}
+            onChange={e => setFilters({ ...filters, date_to: e.target.value })}
+            className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
+          />
+        </div>
+      </div>
+
+      {/* Logs Table */}
+      <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div></div>
+        ) : logs.length === 0 ? (
+          <div className="text-center py-12 text-dark-400">Aucun log trouvé</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px]">
+              <thead className="bg-dark-700/50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm">Date</th>
+                  <th className="px-4 py-3 text-left text-sm">Utilisateur</th>
+                  <th className="px-4 py-3 text-left text-sm">Action</th>
+                  <th className="px-4 py-3 text-left text-sm">Type</th>
+                  <th className="px-4 py-3 text-left text-sm">Cible</th>
+                  <th className="px-4 py-3 text-left text-sm">IP</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-dark-700">
+                {logs.map(log => (
+                  <tr key={log.id} className="hover:bg-dark-700/30">
+                    <td className="px-4 py-3 text-sm text-dark-400">{formatDate(log.created_at)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center overflow-hidden">
+                          {log.avatar_url ? <img src={log.avatar_url} className="w-full h-full object-cover" /> : log.username?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{log.username || 'Système'}</p>
+                          <p className="text-xs text-dark-500">{log.user_role}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm">{log.action}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded text-xs ${actionTypeColors[log.action_type] || 'bg-dark-700 text-dark-400'}`}>
+                        {actionTypeLabels[log.action_type] || log.action_type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-dark-400">
+                      {log.target_type && <span>{log.target_type}: {log.target_id?.substring(0, 8)}...</span>}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-dark-500">{log.ip_address}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {pagination.pages > 1 && (
+        <div className="flex justify-center gap-2">
+          <button
+            onClick={() => setPagination(p => ({ ...p, page: Math.max(1, p.page - 1) }))}
+            disabled={pagination.page === 1}
+            className="px-4 py-2 bg-dark-700 rounded-lg disabled:opacity-50"
+          >
+            Précédent
+          </button>
+          <span className="px-4 py-2 text-dark-400">
+            Page {pagination.page} / {pagination.pages}
+          </span>
+          <button
+            onClick={() => setPagination(p => ({ ...p, page: Math.min(p.pages, p.page + 1) }))}
+            disabled={pagination.page === pagination.pages}
+            className="px-4 py-2 bg-dark-700 rounded-lg disabled:opacity-50"
+          >
+            Suivant
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Admin Management (Superadmin only)
+const AdminAdmins = () => {
+  const [admins, setAdmins] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showPromoteModal, setShowPromoteModal] = useState(false)
+  const [searchUser, setSearchUser] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+
+  useEffect(() => { fetchAdmins() }, [])
+
+  const fetchAdmins = async () => {
+    setLoading(true)
+    try {
+      const res = await api.get('/admin/admins')
+      setAdmins(res.data || [])
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+
+  const searchUsers = async () => {
+    if (!searchUser.trim()) return
+    try {
+      const res = await api.get(`/admin/users?search=${searchUser}&limit=10`)
+      setSearchResults(res.data.users?.filter(u => !['admin', 'superadmin'].includes(u.role)) || [])
+    } catch (e) { console.error(e) }
+  }
+
+  const promoteToAdmin = async (userId) => {
+    try {
+      await api.post(`/admin/admins/promote/${userId}`)
+      fetchAdmins()
+      setShowPromoteModal(false)
+      setSearchUser('')
+      setSearchResults([])
+    } catch (e) { 
+      alert(e.response?.data?.error || 'Erreur')
+    }
+  }
+
+  const updateAdmin = async (id, updates) => {
+    try {
+      await api.patch(`/admin/admins/${id}`, updates)
+      fetchAdmins()
+    } catch (e) {
+      alert(e.response?.data?.error || 'Erreur')
+    }
+  }
+
+  const deleteAdmin = async (id) => {
+    if (!confirm('Supprimer cet administrateur ?')) return
+    try {
+      await api.delete(`/admin/admins/${id}`)
+      fetchAdmins()
+    } catch (e) {
+      alert(e.response?.data?.error || 'Erreur')
+    }
+  }
+
+  const roleColors = {
+    superadmin: 'bg-red-500/20 text-red-400',
+    admin: 'bg-purple-500/20 text-purple-400'
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <h1 className="text-2xl font-bold">Gestion des Administrateurs</h1>
+        <div className="flex gap-2">
+          <button onClick={() => setShowPromoteModal(true)} className="px-4 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg flex items-center gap-2">
+            <FiPlus className="w-4 h-4" /> Promouvoir
+          </button>
+          <button onClick={fetchAdmins} disabled={loading} className="px-4 py-2 bg-dark-700 hover:bg-dark-600 rounded-lg">
+            <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Admins List */}
+      <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div></div>
+        ) : admins.length === 0 ? (
+          <div className="text-center py-12 text-dark-400">Aucun administrateur</div>
+        ) : (
+          <div className="divide-y divide-dark-700">
+            {admins.map(admin => (
+              <div key={admin.id} className="p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-dark-700 flex items-center justify-center overflow-hidden">
+                    {admin.avatar_url ? <img src={admin.avatar_url} className="w-full h-full object-cover" /> : admin.username?.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-medium">{admin.display_name || admin.username}</p>
+                    <p className="text-sm text-dark-400">{admin.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`px-2 py-1 rounded text-xs ${roleColors[admin.role]}`}>
+                    {admin.role === 'superadmin' ? 'Super Admin' : 'Admin'}
+                  </span>
+                  {admin.role !== 'superadmin' && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => updateAdmin(admin.id, { isActive: !admin.is_active })}
+                        className={`p-2 rounded-lg ${admin.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}
+                        title={admin.is_active ? 'Désactiver' : 'Activer'}
+                      >
+                        {admin.is_active ? <FiToggleRight className="w-5 h-5" /> : <FiToggleLeft className="w-5 h-5" />}
+                      </button>
+                      <button
+                        onClick={() => updateAdmin(admin.id, { role: 'user' })}
+                        className="p-2 bg-yellow-500/20 text-yellow-400 rounded-lg"
+                        title="Rétrograder"
+                      >
+                        <FiUsers className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => deleteAdmin(admin.id)}
+                        className="p-2 bg-red-500/20 text-red-400 rounded-lg"
+                        title="Supprimer"
+                      >
+                        <FiTrash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Promote Modal */}
+      {showPromoteModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 rounded-xl border border-dark-700 w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b border-dark-700">
+              <h3 className="font-semibold">Promouvoir un utilisateur</h3>
+              <button onClick={() => { setShowPromoteModal(false); setSearchResults([]) }} className="p-2 hover:bg-dark-700 rounded-lg">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Rechercher par username ou email..."
+                  value={searchUser}
+                  onChange={e => setSearchUser(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && searchUsers()}
+                  className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
+                />
+                <button onClick={searchUsers} className="px-4 py-2 bg-primary-500 rounded-lg">
+                  <FiSearch className="w-5 h-5" />
+                </button>
+              </div>
+              {searchResults.length > 0 && (
+                <div className="divide-y divide-dark-700 max-h-60 overflow-y-auto">
+                  {searchResults.map(user => (
+                    <div key={user.id} className="py-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center">
+                          {user.username?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{user.username}</p>
+                          <p className="text-xs text-dark-400">{user.role}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => promoteToAdmin(user.id)}
+                        className="px-3 py-1 bg-primary-500 hover:bg-primary-600 rounded text-sm"
+                      >
+                        Promouvoir
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

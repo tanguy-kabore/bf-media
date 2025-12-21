@@ -89,25 +89,33 @@ const requireRole = (...roles) => {
   };
 };
 
-// Check if user is admin
+// Check if user is superadmin
+const isSuperAdmin = (req, res, next) => {
+  if (!req.user || req.user.role !== 'superadmin') {
+    return res.status(403).json({ error: 'Accès superadmin requis' });
+  }
+  next();
+};
+
+// Check if user is admin or superadmin
 const isAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 'admin') {
+  if (!req.user || !['admin', 'superadmin'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Accès administrateur requis' });
   }
   next();
 };
 
-// Check if user is moderator or admin
+// Check if user is moderator, admin or superadmin
 const isModerator = (req, res, next) => {
-  if (!req.user || !['admin', 'moderator'].includes(req.user.role)) {
+  if (!req.user || !['admin', 'superadmin', 'moderator'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Accès modérateur requis' });
   }
   next();
 };
 
-// Check if user is creator, moderator or admin
+// Check if user is creator, moderator, admin or superadmin
 const isCreator = (req, res, next) => {
-  if (!req.user || !['admin', 'moderator', 'creator'].includes(req.user.role)) {
+  if (!req.user || !['admin', 'superadmin', 'moderator', 'creator'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Accès créateur requis' });
   }
   next();
@@ -162,6 +170,7 @@ module.exports = {
   authenticate,
   optionalAuth,
   requireRole,
+  isSuperAdmin,
   isAdmin,
   isModerator,
   isCreator,

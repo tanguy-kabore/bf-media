@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   display_name VARCHAR(100),
   avatar_url VARCHAR(500),
   bio TEXT,
-  role ENUM('user', 'creator', 'moderator', 'admin') DEFAULT 'user',
+  role ENUM('user', 'creator', 'moderator', 'admin', 'superadmin') DEFAULT 'user',
   is_verified BOOLEAN DEFAULT FALSE,
   verification_badge BOOLEAN DEFAULT FALSE,
   verified_at DATETIME,
@@ -445,6 +445,26 @@ CREATE TABLE IF NOT EXISTS ads (
   INDEX idx_status (status),
   INDEX idx_position (position),
   INDEX idx_ad_type (ad_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Activity logs table for admin monitoring
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(36),
+  action VARCHAR(100) NOT NULL,
+  action_type ENUM('auth', 'video', 'channel', 'comment', 'admin', 'user', 'system') DEFAULT 'system',
+  target_type VARCHAR(50),
+  target_id VARCHAR(36),
+  details JSON,
+  ip_address VARCHAR(45),
+  user_agent TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_user_id (user_id),
+  INDEX idx_action (action),
+  INDEX idx_action_type (action_type),
+  INDEX idx_created_at (created_at),
+  INDEX idx_target (target_type, target_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Insert default categories
