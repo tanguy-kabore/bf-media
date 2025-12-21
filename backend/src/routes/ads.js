@@ -52,7 +52,7 @@ router.post('/upload', authenticate, uploadAdMedia.single('file'), asyncHandler(
 
 // Get active ads for a specific position with targeting
 router.get('/', optionalAuth, asyncHandler(async (req, res) => {
-  const { position = 'sidebar', limit = 5, country, device, category } = req.query;
+  const { position = 'in_feed', limit = 5, country, device, category } = req.query;
   
   const now = new Date().toISOString().split('T')[0];
   

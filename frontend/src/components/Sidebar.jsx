@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import { FiHome, FiCompass, FiPlayCircle, FiClock, FiBookmark, FiThumbsUp, FiFilm, FiMusic, FiMonitor, FiTrendingUp } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
 import api from '../services/api'
-import AdBanner from './AdBanner'
 
 const mainLinks = [
   { to: '/', icon: FiHome, label: 'Accueil' },
@@ -89,12 +88,6 @@ export default function Sidebar({ collapsed, isOpen, isMobile, onClose }) {
 
         {!collapsed && (
           <>
-            {/* Ad at top of menu */}
-            <div className="my-3 border-t border-dark-800" />
-            <div className="px-1">
-              <AdBanner position="sidebar" />
-            </div>
-
             <div className="my-3 border-t border-dark-800" />
             <div className="space-y-1">
               <p className="px-4 py-2 text-sm font-medium text-dark-400">Bibliothèque</p>

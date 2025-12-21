@@ -1226,7 +1226,7 @@ const AdModal = ({ ad, onClose, onSave }) => {
     ad_type: ad?.ad_type || 'banner', 
     media_url: ad?.media_url || '', 
     target_url: ad?.target_url || '', 
-    position: ad?.position || 'sidebar', 
+    position: ad?.position || 'in_feed', 
     status: ad?.status || 'draft',
     targeting_mode: hasTargeting ? 'targeted' : 'general',
     target_countries: parseTargetArray(ad?.target_countries),
@@ -1251,7 +1251,6 @@ const AdModal = ({ ad, onClose, onSave }) => {
     { id: 'tech', name: 'Technologie' }, { id: 'lifestyle', name: 'Lifestyle' }
   ]
   const positions = [
-    { id: 'sidebar', name: 'Barre latérale', desc: 'Affiché dans le menu' },
     { id: 'in_feed', name: 'Dans le flux', desc: 'Entre les vidéos suggérées' },
     { id: 'pre_roll', name: 'Pré-roll', desc: 'Avant la vidéo (skippable 5s)' },
     { id: 'mid_roll', name: 'Mid-roll', desc: 'Pendant la vidéo' },
