@@ -226,10 +226,35 @@ router.patch('/users/:id', authenticate, isAdmin, asyncHandler(async (req, res) 
   const { id } = req.params;
   const { role, isActive, isVerified, storageLimit } = req.body;
 
-  // Check if target user is admin - prevent deactivating admins
-  const [targetUser] = await query('SELECT role FROM users WHERE id = ?', [id]);
-  if (targetUser?.role === 'admin' && isActive === false) {
-    return res.status(403).json({ error: 'Impossible de désactiver un administrateur' });
+  // Cannot modify yourself
+  if (id === req.user.id) {
+    return res.status(400).json({ error: 'Vous ne pouvez pas modifier votre propre compte ici' });
+  }
+
+  // Check target user role
+  const [targetUser] = await query('SELECT role, username FROM users WHERE id = ?', [id]);
+  if (!targetUser) {
+    return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  }
+
+  // Only superadmin can modify admin/superadmin users
+  if (['admin', 'superadmin'].includes(targetUser.role) && req.user.role !== 'superadmin') {
+    return res.status(403).json({ error: 'Seul un superadmin peut modifier un administrateur' });
+  }
+
+  // Cannot modify another superadmin
+  if (targetUser.role === 'superadmin') {
+    return res.status(403).json({ error: 'Impossible de modifier un superadmin' });
+  }
+
+  // Only superadmin can assign admin role
+  if (role === 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ error: 'Seul un superadmin peut promouvoir en admin' });
+  }
+
+  // Cannot assign superadmin role
+  if (role === 'superadmin') {
+    return res.status(403).json({ error: 'Impossible d\'assigner le rôle superadmin' });
   }
 
   const updates = [];
@@ -264,6 +289,16 @@ router.patch('/users/:id', authenticate, isAdmin, asyncHandler(async (req, res) 
     await query(`UPDATE channels SET is_verified = ? WHERE user_id = ?`, [isVerified ? 1 : 0, id]);
   }
 
+  // Log the action
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.ADMIN_UPDATE_USER,
+    actionType: ACTION_TYPES.ADMIN,
+    targetType: 'user',
+    targetId: id,
+    details: { role, isActive, isVerified, previousRole: targetUser.role, targetUsername: targetUser.username }
+  }, req);
+
   res.json({ message: 'Utilisateur mis à jour' });
 }));
 
@@ -276,13 +311,34 @@ router.delete('/users/:id', authenticate, isAdmin, asyncHandler(async (req, res)
     return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
   }
 
-  // Check if target user is admin - prevent deleting admins
-  const [targetUser] = await query('SELECT role FROM users WHERE id = ?', [id]);
-  if (targetUser?.role === 'admin') {
-    return res.status(403).json({ error: 'Impossible de supprimer un administrateur' });
+  // Check target user role
+  const [targetUser] = await query('SELECT role, username FROM users WHERE id = ?', [id]);
+  if (!targetUser) {
+    return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  }
+
+  // Cannot delete superadmin
+  if (targetUser.role === 'superadmin') {
+    return res.status(403).json({ error: 'Impossible de supprimer un superadmin' });
+  }
+
+  // Only superadmin can delete admin users
+  if (targetUser.role === 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ error: 'Seul un superadmin peut supprimer un administrateur' });
   }
 
   await query('DELETE FROM users WHERE id = ?', [id]);
+
+  // Log the action
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.ADMIN_DELETE_USER,
+    actionType: ACTION_TYPES.ADMIN,
+    targetType: 'user',
+    targetId: id,
+    details: { deletedUsername: targetUser.username, deletedRole: targetUser.role }
+  }, req);
+
   res.json({ message: 'Utilisateur supprimé' });
 }));
 
@@ -368,7 +424,22 @@ router.patch('/videos/:id', authenticate, isModerator, asyncHandler(async (req, 
 // Delete video
 router.delete('/videos/:id', authenticate, isAdmin, asyncHandler(async (req, res) => {
   const { id } = req.params;
+  
+  // Get video info for logging
+  const [video] = await query('SELECT title, channel_id FROM videos WHERE id = ?', [id]);
+  
   await query('DELETE FROM videos WHERE id = ?', [id]);
+
+  // Log the action
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.ADMIN_DELETE_VIDEO,
+    actionType: ACTION_TYPES.ADMIN,
+    targetType: 'video',
+    targetId: id,
+    details: { videoTitle: video?.title }
+  }, req);
+
   res.json({ message: 'Vidéo supprimée' });
 }));
 
@@ -489,6 +560,16 @@ router.patch('/reports/:id', authenticate, isModerator, asyncHandler(async (req,
     UPDATE reports SET status = ?, action_taken = ?, reviewed_by = ?, reviewed_at = NOW()
     WHERE id = ?
   `, [status, actionTaken, req.user.id, id]);
+
+  // Log the action
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.ADMIN_HANDLE_REPORT,
+    actionType: ACTION_TYPES.ADMIN,
+    targetType: 'report',
+    targetId: id,
+    details: { status, videoAction, contentType: report.content_type, contentId: report.content_id }
+  }, req);
 
   res.json({ message: 'Rapport traité' });
 }));
@@ -801,6 +882,16 @@ router.patch('/verifications/:id', authenticate, isAdmin, asyncHandler(async (re
       console.error('Error updating user verification:', e);
     }
   }
+
+  // Log the action
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.ADMIN_VERIFY_USER,
+    actionType: ACTION_TYPES.ADMIN,
+    targetType: 'user',
+    targetId: request.user_id,
+    details: { status, requestId: id }
+  }, req);
 
   res.json({ message: status === 'approved' ? 'Compte vérifié avec succès' : 'Demande rejetée' });
 }));

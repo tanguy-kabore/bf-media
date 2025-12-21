@@ -6,6 +6,7 @@ const { body, validationResult } = require('express-validator');
 const { query } = require('../config/database');
 const { authenticate, generateTokens } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { logActivity, ACTIONS, ACTION_TYPES } = require('../middleware/activityLogger');
 
 // Validation middleware
 const registerValidation = [
@@ -62,6 +63,14 @@ router.post('/register', registerValidation, asyncHandler(async (req, res) => {
 
   // Generate tokens
   const { accessToken, refreshToken } = generateTokens(userId);
+
+  // Log registration
+  await logActivity({
+    userId,
+    action: ACTIONS.REGISTER,
+    actionType: ACTION_TYPES.AUTH,
+    details: { username, email }
+  }, req);
 
   res.status(201).json({
     message: 'Compte créé avec succès',
@@ -120,6 +129,14 @@ router.post('/login', loginValidation, asyncHandler(async (req, res) => {
 
   // Generate tokens
   const { accessToken, refreshToken } = generateTokens(user.id);
+
+  // Log login
+  await logActivity({
+    userId: user.id,
+    action: ACTIONS.LOGIN,
+    actionType: ACTION_TYPES.AUTH,
+    details: { username: user.username }
+  }, req);
 
   res.json({
     message: 'Connexion réussie',
