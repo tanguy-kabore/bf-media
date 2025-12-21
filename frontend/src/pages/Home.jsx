@@ -3,6 +3,7 @@ import { useIsMobile } from '../hooks/useMediaQuery'
 import api from '../services/api'
 import VideoCard from '../components/VideoCard'
 import AdBanner from '../components/AdBanner'
+import SponsoredVideoCard from '../components/SponsoredVideoCard'
 
 const categories = [
   { id: null, name: 'Tout' },
@@ -17,12 +18,14 @@ const categories = [
 export default function Home() {
   const isMobile = useIsMobile()
   const [videos, setVideos] = useState([])
+  const [sponsoredAds, setSponsoredAds] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeCategory, setActiveCategory] = useState(null)
   const [sort, setSort] = useState('recent')
 
   useEffect(() => {
     fetchVideos()
+    fetchSponsoredAds()
   }, [activeCategory, sort])
 
   const fetchVideos = async () => {
@@ -36,6 +39,20 @@ export default function Home() {
       console.error('Error fetching videos:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSponsoredAds = async () => {
+    try {
+      const params = new URLSearchParams({
+        position: 'in_feed',
+        limit: '2'
+      })
+      if (activeCategory) params.append('category', activeCategory)
+      const response = await api.get(`/ads?${params}`)
+      setSponsoredAds(response.data || [])
+    } catch (error) {
+      console.error('Error fetching sponsored ads:', error)
     }
   }
 
@@ -101,6 +118,11 @@ export default function Home() {
             ? 'space-y-3' 
             : 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 lg:gap-5'
         }`}>
+          {/* Sponsored ads first */}
+          {sponsoredAds.map((ad) => (
+            <SponsoredVideoCard key={`ad-${ad.id}`} ad={ad} variant={isMobile ? 'compact' : 'grid'} />
+          ))}
+          {/* Regular videos */}
           {videos.map((video) => (
             <VideoCard key={video.id} video={video} compact={isMobile} />
           ))}

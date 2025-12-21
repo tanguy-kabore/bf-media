@@ -6,6 +6,7 @@ const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/database');
 const { optionalAuth, authenticate } = require('../middleware/auth');
+const { logActivity, ACTIONS, ACTION_TYPES } = require('../middleware/activityLogger');
 
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
@@ -133,8 +134,15 @@ router.get('/:id', asyncHandler(async (req, res) => {
 }));
 
 // Record an impression
-router.post('/:id/impression', asyncHandler(async (req, res) => {
+router.post('/:id/impression', optionalAuth, asyncHandler(async (req, res) => {
   const { id } = req.params;
+  
+  // Get ad info for logging
+  const [ad] = await query('SELECT title, ad_type, position FROM ads WHERE id = ?', [id]);
+  
+  if (!ad) {
+    return res.status(404).json({ error: 'Publicité non trouvée' });
+  }
   
   await query(`
     UPDATE ads 
@@ -143,15 +151,29 @@ router.post('/:id/impression', asyncHandler(async (req, res) => {
     WHERE id = ?
   `, [id]);
   
+  // Log impression to activity logs
+  await logActivity({
+    userId: req.user?.id || null,
+    action: ACTIONS.AD_IMPRESSION,
+    actionType: ACTION_TYPES.SYSTEM,
+    targetType: 'ad',
+    targetId: id,
+    details: {
+      adTitle: ad.title,
+      adType: ad.ad_type,
+      position: ad.position
+    }
+  }, req);
+  
   res.json({ success: true });
 }));
 
 // Record a click
-router.post('/:id/click', asyncHandler(async (req, res) => {
+router.post('/:id/click', optionalAuth, asyncHandler(async (req, res) => {
   const { id } = req.params;
   
-  // Get ad to return target URL
-  const [ad] = await query('SELECT target_url FROM ads WHERE id = ?', [id]);
+  // Get ad info for logging
+  const [ad] = await query('SELECT title, ad_type, position, target_url FROM ads WHERE id = ?', [id]);
   
   if (!ad) {
     return res.status(404).json({ error: 'Publicité non trouvée' });
@@ -162,6 +184,21 @@ router.post('/:id/click', asyncHandler(async (req, res) => {
     SET clicks = clicks + 1
     WHERE id = ?
   `, [id]);
+  
+  // Log click to activity logs
+  await logActivity({
+    userId: req.user?.id || null,
+    action: ACTIONS.AD_CLICK,
+    actionType: ACTION_TYPES.SYSTEM,
+    targetType: 'ad',
+    targetId: id,
+    details: {
+      adTitle: ad.title,
+      adType: ad.ad_type,
+      position: ad.position,
+      targetUrl: ad.target_url
+    }
+  }, req);
   
   res.json({ success: true, target_url: ad.target_url });
 }));

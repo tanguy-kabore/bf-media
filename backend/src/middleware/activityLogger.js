@@ -61,6 +61,10 @@ const ACTIONS = {
   DISLIKE_VIDEO: 'dislike_video',
   SAVE_VIDEO: 'save_video',
   
+  // Ad actions
+  AD_IMPRESSION: 'ad_impression',
+  AD_CLICK: 'ad_click',
+  
   // Admin actions
   ADMIN_UPDATE_USER: 'admin_update_user',
   ADMIN_DELETE_USER: 'admin_delete_user',

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { FiThumbsUp, FiThumbsDown, FiShare2, FiBookmark, FiFlag, FiMoreHorizontal, FiList, FiPlus, FiCheck, FiX, FiBell, FiUserPlus, FiCheckCircle } from 'react-icons/fi'
 import AdBanner from '../components/AdBanner'
+import PreRollAd from '../components/PreRollAd'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import api from '../services/api'
@@ -36,6 +37,8 @@ export default function Watch() {
   const [loadingPlaylists, setLoadingPlaylists] = useState(false)
   const [videoInPlaylists, setVideoInPlaylists] = useState([])
   const [showReportModal, setShowReportModal] = useState(false)
+  const [showPreRollAd, setShowPreRollAd] = useState(true)
+  const [adCompleted, setAdCompleted] = useState(false)
   
   // Watch session tracking
   const [watchSessionId, setWatchSessionId] = useState(null)
@@ -500,17 +503,35 @@ export default function Watch() {
     return <div className="text-center py-20 text-dark-400">Vidéo non trouvée</div>
   }
 
+  const handleAdComplete = () => {
+    setShowPreRollAd(false)
+    setAdCompleted(true)
+    // Start playing the actual video
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {})
+    }
+  }
+
   return (
     <>
       {/* Video player */}
       <div className="-mx-3 sm:mx-0 bg-black sm:bg-transparent">
-        <div className="w-full sm:rounded-xl overflow-hidden">
+        <div className="w-full sm:rounded-xl overflow-hidden relative">
+          {/* Pre-roll Ad */}
+          {showPreRollAd && !adCompleted && (
+            <PreRollAd 
+              onComplete={handleAdComplete}
+              onSkip={handleAdComplete}
+              category={video.category_name}
+            />
+          )}
+          
           <video
             ref={videoRef}
             src={video.video_url}
             poster={video.thumbnail_url}
             controls
-            autoPlay
+            autoPlay={adCompleted}
             className="w-full aspect-video object-contain max-h-[70vh]"
           />
         </div>
