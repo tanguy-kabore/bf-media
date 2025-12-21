@@ -674,6 +674,7 @@ router.patch('/ads/:id', authenticate, isAdmin, asyncHandler(async (req, res) =>
   // Validate ENUM values
   const validPositions = ['sidebar', 'header', 'footer', 'pre_roll', 'mid_roll', 'post_roll', 'in_feed'];
   const validAdTypes = ['banner', 'video', 'overlay', 'sponsored'];
+  const validStatuses = ['draft', 'active', 'paused', 'expired'];
 
   const updates = [];
   const params = [];
@@ -683,17 +684,29 @@ router.patch('/ads/:id', authenticate, isAdmin, asyncHandler(async (req, res) =>
   if (ad_type !== undefined && validAdTypes.includes(ad_type)) { updates.push('ad_type = ?'); params.push(ad_type); }
   if (media_url !== undefined) { updates.push('media_url = ?'); params.push(media_url); }
   if (target_url) { updates.push('target_url = ?'); params.push(target_url); }
-  if (duration !== undefined) { updates.push('duration = ?'); params.push(duration); }
+  if (duration !== undefined) { updates.push('duration = ?'); params.push(parseFloat(duration) || 0); }
   if (position !== undefined && validPositions.includes(position)) { updates.push('position = ?'); params.push(position); }
-  if (priority !== undefined) { updates.push('priority = ?'); params.push(priority); }
+  if (priority !== undefined) { updates.push('priority = ?'); params.push(parseInt(priority) || 1); }
   if (start_date !== undefined) { updates.push('start_date = ?'); params.push(start_date || null); }
   if (end_date !== undefined) { updates.push('end_date = ?'); params.push(end_date || null); }
-  if (budget !== undefined) { updates.push('budget = ?'); params.push(budget); }
-  if (cpm !== undefined) { updates.push('cpm = ?'); params.push(cpm); }
-  if (status) { updates.push('status = ?'); params.push(status); }
-  if (target_countries !== undefined) { updates.push('target_countries = ?'); params.push(target_countries); }
-  if (target_devices !== undefined) { updates.push('target_devices = ?'); params.push(target_devices); }
-  if (target_categories !== undefined) { updates.push('target_categories = ?'); params.push(target_categories); }
+  if (budget !== undefined) { updates.push('budget = ?'); params.push(parseFloat(budget) || 0); }
+  if (cpm !== undefined) { updates.push('cpm = ?'); params.push(parseFloat(cpm) || 0); }
+  if (status && validStatuses.includes(status)) { updates.push('status = ?'); params.push(status); }
+  if (target_countries !== undefined) { 
+    const countriesStr = typeof target_countries === 'string' ? target_countries : JSON.stringify(target_countries || []);
+    updates.push('target_countries = ?'); 
+    params.push(countriesStr); 
+  }
+  if (target_devices !== undefined) { 
+    const devicesStr = typeof target_devices === 'string' ? target_devices : JSON.stringify(target_devices || []);
+    updates.push('target_devices = ?'); 
+    params.push(devicesStr); 
+  }
+  if (target_categories !== undefined) { 
+    const categoriesStr = typeof target_categories === 'string' ? target_categories : JSON.stringify(target_categories || []);
+    updates.push('target_categories = ?'); 
+    params.push(categoriesStr); 
+  }
 
   if (updates.length > 0) {
     params.push(id);
