@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { logActivity, ACTIONS, ACTION_TYPES } = require('../middleware/activityLogger');
 
 // Subscribe to a channel
 router.post('/:channelId', authenticate, asyncHandler(async (req, res) => {
@@ -52,6 +53,16 @@ router.post('/:channelId', authenticate, asyncHandler(async (req, res) => {
     io.to(`user:${channel.user_id}`).emit('notification', { type: 'subscription' });
   }
 
+  // Log subscription
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.SUBSCRIBE,
+    actionType: ACTION_TYPES.USER,
+    targetType: 'channel',
+    targetId: channelId,
+    details: { channelName: channel.name }
+  }, req);
+
   res.json({ message: 'Abonnement réussi' });
 }));
 
@@ -69,6 +80,15 @@ router.delete('/:channelId', authenticate, asyncHandler(async (req, res) => {
   }
 
   await query('UPDATE channels SET subscriber_count = subscriber_count - 1 WHERE id = ?', [channelId]);
+
+  // Log unsubscription
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.UNSUBSCRIBE,
+    actionType: ACTION_TYPES.USER,
+    targetType: 'channel',
+    targetId: channelId
+  }, req);
 
   res.json({ message: 'Désabonnement réussi' });
 }));

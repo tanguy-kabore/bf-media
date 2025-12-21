@@ -5,6 +5,7 @@ const { query } = require('../config/database');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { uploadAvatar, uploadBanner } = require('../middleware/upload');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { logActivity, ACTIONS, ACTION_TYPES } = require('../middleware/activityLogger');
 
 // Get all user's channels
 router.get('/my', authenticate, asyncHandler(async (req, res) => {

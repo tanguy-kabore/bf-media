@@ -4,6 +4,7 @@ const { query } = require('../config/database');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { uploadAvatar } = require('../middleware/upload');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { logActivity, ACTIONS, ACTION_TYPES } = require('../middleware/activityLogger');
 
 // Update user profile
 router.put('/profile', authenticate, asyncHandler(async (req, res) => {
@@ -18,6 +19,16 @@ router.put('/profile', authenticate, asyncHandler(async (req, res) => {
   if (updates.length > 0) {
     params.push(req.user.id);
     await query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+
+    // Log profile update
+    await logActivity({
+      userId: req.user.id,
+      action: ACTIONS.UPDATE_PROFILE,
+      actionType: ACTION_TYPES.USER,
+      targetType: 'user',
+      targetId: req.user.id,
+      details: { displayName, bio: bio ? 'updated' : undefined }
+    }, req);
   }
 
   res.json({ message: 'Profil mis à jour' });
