@@ -58,11 +58,17 @@ export default function PreRollAd({ onComplete, onSkip, category = '', position 
     onComplete?.()
   }, [onComplete])
 
-  const handleSkip = useCallback(() => {
-    if (canSkip && !hasCompleted.current) {
+  const handleSkip = useCallback((forceSkip = false) => {
+    if ((canSkip || forceSkip) && !hasCompleted.current) {
       hasCompleted.current = true
-      if (countdownRef.current) clearInterval(countdownRef.current)
-      if (imageTimerRef.current) clearTimeout(imageTimerRef.current)
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current)
+        countdownRef.current = null
+      }
+      if (imageTimerRef.current) {
+        clearTimeout(imageTimerRef.current)
+        imageTimerRef.current = null
+      }
       onSkip?.()
     }
   }, [canSkip, onSkip])
@@ -111,23 +117,32 @@ export default function PreRollAd({ onComplete, onSkip, category = '', position 
 
   // Countdown timer - starts when ad is loaded
   useEffect(() => {
-    if (!ad || canSkip || hasCompleted.current) return
+    if (!ad || hasCompleted.current) return
+    
+    // Reset countdown when ad loads
+    setCountdown(5)
+    setCanSkip(false)
 
+    let count = 5
     countdownRef.current = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          setCanSkip(true)
-          if (countdownRef.current) clearInterval(countdownRef.current)
-          return 0
+      count -= 1
+      setCountdown(count)
+      if (count <= 0) {
+        setCanSkip(true)
+        if (countdownRef.current) {
+          clearInterval(countdownRef.current)
+          countdownRef.current = null
         }
-        return prev - 1
-      })
+      }
     }, 1000)
 
     return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current)
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current)
+        countdownRef.current = null
+      }
     }
-  }, [ad, canSkip])
+  }, [ad])
 
   // Track video progress
   const handleTimeUpdate = () => {
@@ -180,9 +195,9 @@ export default function PreRollAd({ onComplete, onSkip, category = '', position 
   const isVideo = mediaUrl?.match(/\.(mp4|webm)$/i)
 
   return (
-    <div className="absolute inset-0 bg-black z-50 flex flex-col">
+    <div className="absolute inset-0 bg-black flex flex-col" style={{ zIndex: 9999 }}>
       {/* Ad content */}
-      <div className="flex-1 relative flex items-center justify-center">
+      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
         {isVideo ? (
           <video
             ref={videoRef}
