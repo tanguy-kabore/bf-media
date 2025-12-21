@@ -669,17 +669,22 @@ router.post('/ads', authenticate, isAdmin, asyncHandler(async (req, res) => {
 // Update ad
 router.patch('/ads/:id', authenticate, isAdmin, asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { title, description, media_url, target_url, duration, position, priority, start_date, end_date, budget, cpm, status, target_countries, target_devices, target_categories } = req.body;
+  const { title, description, ad_type, media_url, target_url, duration, position, priority, start_date, end_date, budget, cpm, status, target_countries, target_devices, target_categories } = req.body;
+
+  // Validate ENUM values
+  const validPositions = ['sidebar', 'header', 'footer', 'pre_roll', 'mid_roll', 'post_roll', 'in_feed'];
+  const validAdTypes = ['banner', 'video', 'overlay', 'sponsored'];
 
   const updates = [];
   const params = [];
 
   if (title) { updates.push('title = ?'); params.push(title); }
   if (description !== undefined) { updates.push('description = ?'); params.push(description); }
+  if (ad_type !== undefined && validAdTypes.includes(ad_type)) { updates.push('ad_type = ?'); params.push(ad_type); }
   if (media_url !== undefined) { updates.push('media_url = ?'); params.push(media_url); }
   if (target_url) { updates.push('target_url = ?'); params.push(target_url); }
   if (duration !== undefined) { updates.push('duration = ?'); params.push(duration); }
-  if (position !== undefined) { updates.push('position = ?'); params.push(position); }
+  if (position !== undefined && validPositions.includes(position)) { updates.push('position = ?'); params.push(position); }
   if (priority !== undefined) { updates.push('priority = ?'); params.push(priority); }
   if (start_date !== undefined) { updates.push('start_date = ?'); params.push(start_date || null); }
   if (end_date !== undefined) { updates.push('end_date = ?'); params.push(end_date || null); }

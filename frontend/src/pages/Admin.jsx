@@ -1253,6 +1253,8 @@ const AdModal = ({ ad, onClose, onSave }) => {
   const positions = [
     { id: 'sidebar', name: 'Barre latérale', desc: 'Affiché dans le menu' },
     { id: 'in_feed', name: 'Dans le flux', desc: 'Entre les vidéos suggérées' },
+    { id: 'pre_roll', name: 'Pré-roll', desc: 'Avant la vidéo (skippable 5s)' },
+    { id: 'mid_roll', name: 'Mid-roll', desc: 'Pendant la vidéo' },
     { id: 'header', name: 'Bannière haute', desc: 'En haut de page' },
     { id: 'footer', name: 'Bannière basse', desc: 'En bas de page' }
   ]
@@ -1368,6 +1370,7 @@ const AdModal = ({ ad, onClose, onSave }) => {
                   <select value={form.ad_type} onChange={e => setForm({ ...form, ad_type: e.target.value })} className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg">
                     <option value="banner">Bannière image</option>
                     <option value="video">Vidéo publicitaire</option>
+                    <option value="overlay">Overlay (superposition)</option>
                     <option value="sponsored">Contenu sponsorisé</option>
                   </select>
                 </div>
@@ -1382,7 +1385,7 @@ const AdModal = ({ ad, onClose, onSave }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Position d'affichage</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {positions.map(pos => (
                     <button
                       key={pos.id}
