@@ -1,19 +1,55 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FiMail, FiLock, FiEye, FiEyeOff, FiPlay } from 'react-icons/fi'
+import { FiMail, FiLock, FiEye, FiEyeOff, FiPlay, FiAlertCircle } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
 import toast from 'react-hot-toast'
 
 export default function Login() {
   const navigate = useNavigate()
   const { login, isLoading } = useAuthStore()
-  const [email, setEmail] = useState('')
+  const [emailPrefix, setEmailPrefix] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [errors, setErrors] = useState({})
+
+  const handleEmailChange = (e) => {
+    // N'autoriser que lettres, chiffres, points et tirets
+    const sanitized = e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '')
+    setEmailPrefix(sanitized)
+    if (errors.emailPrefix) setErrors({ ...errors, emailPrefix: null })
+  }
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value)
+    if (errors.password) setErrors({ ...errors, password: null })
+  }
+
+  const validateForm = () => {
+    const newErrors = {}
+    
+    if (emailPrefix.length < 3) {
+      newErrors.emailPrefix = 'L\'identifiant doit contenir au moins 3 caractères'
+    }
+    
+    if (password.length < 8) {
+      newErrors.password = 'Le mot de passe doit contenir au moins 8 caractères'
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const result = await login(email, password)
+    
+    if (!validateForm()) {
+      return
+    }
+    
+    // Construire l'email complet
+    const fullEmail = `${emailPrefix}@tipoko.bf`
+    
+    const result = await login(fullEmail, password)
     if (result.success) {
       toast.success('Connexion réussie !')
       navigate('/')
@@ -45,21 +81,34 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-dark-900/50 backdrop-blur-sm border border-dark-800 rounded-2xl p-6 sm:p-8 space-y-5">
+          {/* Identifiant TIPOKO */}
           <div>
-            <label className="block text-sm font-medium mb-2">Email</label>
-            <div className="relative">
-              <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="votre@email.com"
-                className="input pl-10"
-                required
-              />
+            <label className="block text-sm font-medium mb-2">Identifiant TIPOKO</label>
+            <div className="relative flex">
+              <div className="relative flex-1">
+                <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                <input
+                  type="text"
+                  value={emailPrefix}
+                  onChange={handleEmailChange}
+                  placeholder="votre.identifiant"
+                  className={`input pl-10 rounded-r-none border-r-0 ${errors.emailPrefix ? 'border-red-500 focus:border-red-500' : ''}`}
+                  required
+                />
+              </div>
+              <span className="inline-flex items-center px-4 bg-dark-700 border border-dark-600 border-l-0 rounded-r-xl text-dark-300 text-sm font-medium">
+                @tipoko.bf
+              </span>
             </div>
+            {errors.emailPrefix && (
+              <p className="mt-1 text-sm text-red-400 flex items-center gap-1">
+                <FiAlertCircle className="w-4 h-4" />
+                {errors.emailPrefix}
+              </p>
+            )}
           </div>
 
+          {/* Mot de passe */}
           <div>
             <label className="block text-sm font-medium mb-2">Mot de passe</label>
             <div className="relative">
@@ -67,9 +116,9 @@ export default function Login() {
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={handlePasswordChange}
                 placeholder="••••••••"
-                className="input pl-10 pr-10"
+                className={`input pl-10 pr-10 ${errors.password ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               <button
@@ -80,6 +129,12 @@ export default function Login() {
                 {showPassword ? <FiEyeOff /> : <FiEye />}
               </button>
             </div>
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-400 flex items-center gap-1">
+                <FiAlertCircle className="w-4 h-4" />
+                {errors.password}
+              </p>
+            )}
           </div>
 
           <button

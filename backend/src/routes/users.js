@@ -82,6 +82,23 @@ router.post('/history/watch', authenticate, asyncHandler(async (req, res) => {
   res.json({ success: true });
 }));
 
+// Get watch progress for a specific video
+router.get('/history/video/:videoId', authenticate, asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+  
+  const result = await query(`
+    SELECT watch_time, progress_percent, watched_at
+    FROM watch_history
+    WHERE user_id = ? AND video_id = ?
+  `, [req.user.id, videoId]);
+  
+  if (result.length === 0) {
+    return res.json(null);
+  }
+  
+  res.json(result[0]);
+}));
+
 // Clear watch history
 router.delete('/history/watch', authenticate, asyncHandler(async (req, res) => {
   await query('DELETE FROM watch_history WHERE user_id = ?', [req.user.id]);

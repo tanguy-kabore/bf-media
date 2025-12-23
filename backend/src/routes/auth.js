@@ -10,15 +10,45 @@ const { logActivity, ACTIONS, ACTION_TYPES } = require('../middleware/activityLo
 
 // Validation middleware
 const registerValidation = [
-  body('email').isEmail().normalizeEmail().withMessage('Email invalide'),
-  body('username').isLength({ min: 3, max: 50 }).matches(/^[a-zA-Z0-9_]+$/).withMessage('Username invalide (3-50 caractères, alphanumériques)'),
-  body('password').isLength({ min: 8 }).withMessage('Mot de passe minimum 8 caractères'),
+  body('email')
+    .isEmail().withMessage('Format d\'email invalide')
+    .custom((value) => {
+      // Vérifier que l'email se termine par @tipoko.bf
+      if (!value.endsWith('@tipoko.bf')) {
+        throw new Error('L\'email doit se terminer par @tipoko.bf');
+      }
+      // Vérifier la longueur du préfixe (minimum 3 caractères)
+      const prefix = value.split('@')[0];
+      if (prefix.length < 3) {
+        throw new Error('L\'identifiant doit contenir au moins 3 caractères');
+      }
+      return true;
+    })
+    .normalizeEmail(),
+  body('username')
+    .isLength({ min: 3, max: 50 }).withMessage('Le pseudo doit contenir entre 3 et 50 caractères')
+    .matches(/^[a-zA-Z0-9_]+$/).withMessage('Le pseudo ne peut contenir que des lettres, chiffres et underscores'),
+  body('password')
+    .isLength({ min: 8 }).withMessage('Le mot de passe doit contenir au moins 8 caractères'),
   body('displayName').optional().isLength({ max: 100 })
 ];
 
 const loginValidation = [
-  body('email').isEmail().normalizeEmail(),
-  body('password').notEmpty()
+  body('email')
+    .isEmail().withMessage('Format d\'email invalide')
+    .custom((value) => {
+      if (!value.endsWith('@tipoko.bf')) {
+        throw new Error('L\'email doit se terminer par @tipoko.bf');
+      }
+      const prefix = value.split('@')[0];
+      if (prefix.length < 3) {
+        throw new Error('L\'identifiant doit contenir au moins 3 caractères');
+      }
+      return true;
+    })
+    .normalizeEmail(),
+  body('password')
+    .isLength({ min: 8 }).withMessage('Le mot de passe doit contenir au moins 8 caractères')
 ];
 
 // Register

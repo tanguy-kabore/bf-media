@@ -45,11 +45,18 @@ export default function Watch() {
   
   // Watch session tracking
   const [watchSessionId, setWatchSessionId] = useState(null)
+  const [savedProgress, setSavedProgress] = useState(null)
+  const [showResumePrompt, setShowResumePrompt] = useState(false)
   const watchStartTimeRef = useRef(0)
   const lastProgressUpdateRef = useRef(0)
   const hasLikedRef = useRef(false)
   const hasCommentedRef = useRef(false)
   const hasSubscribedRef = useRef(false)
+  const hasRestoredProgress = useRef(false)
+
+  // Store video id in ref for cleanup
+  const videoIdRef = useRef(id)
+  videoIdRef.current = id
 
   useEffect(() => {
     if (id) {
@@ -58,15 +65,77 @@ export default function Watch() {
       fetchComments()
       recordView()
       startWatchSession()
+      fetchSavedProgress()
     }
     
-    // Cleanup: end watch session when leaving
+    // Cleanup: save progress when leaving
     return () => {
-      if (watchSessionId) {
-        endWatchSession()
+      // Save to localStorage directly in cleanup
+      if (videoRef.current && videoIdRef.current) {
+        const currentTime = videoRef.current.currentTime || 0
+        const duration = videoRef.current.duration || 1
+        const watchDuration = Math.floor(currentTime)
+        const watchPercentage = Math.min(100, (currentTime / duration) * 100)
+        
+        if (watchDuration >= 5) {
+          localStorage.setItem(`video_progress_${videoIdRef.current}`, JSON.stringify({
+            time: watchDuration,
+            percent: watchPercentage,
+            updatedAt: Date.now()
+          }))
+        }
       }
+      endWatchSession()
     }
   }, [id])
+
+  // Fetch saved watch progress from localStorage or backend
+  const fetchSavedProgress = async () => {
+    // First check localStorage for quick access
+    const localProgress = localStorage.getItem(`video_progress_${id}`)
+    if (localProgress) {
+      const parsed = JSON.parse(localProgress)
+      // Only restore if progress is > 10 seconds and < 95% complete
+      if (parsed.time > 10 && parsed.percent < 95) {
+        setSavedProgress(parsed)
+        setShowResumePrompt(true)
+      }
+    }
+    
+    // Also try to get from backend if authenticated
+    if (isAuthenticated) {
+      try {
+        const response = await api.get(`/users/history/video/${id}`)
+        if (response.data?.watch_time > 10 && response.data?.progress_percent < 95) {
+          const backendProgress = {
+            time: response.data.watch_time,
+            percent: response.data.progress_percent
+          }
+          // Use backend progress if it's further along than local
+          if (!localProgress || backendProgress.time > JSON.parse(localProgress).time) {
+            setSavedProgress(backendProgress)
+            setShowResumePrompt(true)
+          }
+        }
+      } catch (error) {
+        // Silently fail - local storage is fallback
+      }
+    }
+  }
+
+  // Handle resume playback
+  const handleResumePlayback = () => {
+    if (savedProgress && videoRef.current) {
+      videoRef.current.currentTime = savedProgress.time
+      setShowResumePrompt(false)
+    }
+  }
+
+  // Handle start from beginning
+  const handleStartFromBeginning = () => {
+    setShowResumePrompt(false)
+    setSavedProgress(null)
+  }
 
   const fetchVideo = async () => {
     setLoading(true)
@@ -143,6 +212,13 @@ export default function Watch() {
     if (watchDuration - lastProgressUpdateRef.current < 5) return
     lastProgressUpdateRef.current = watchDuration
     
+    // Save to localStorage for quick restore on return
+    localStorage.setItem(`video_progress_${id}`, JSON.stringify({
+      time: watchDuration,
+      percent: watchPercentage,
+      updatedAt: Date.now()
+    }))
+    
     try {
       await api.post(`/videos/${id}/watch/progress`, {
         sessionId: watchSessionId,
@@ -163,8 +239,30 @@ export default function Watch() {
     }
   }
 
+  // Save progress to localStorage (called on pause, leave, etc.)
+  const saveProgressToLocal = () => {
+    if (!videoRef.current) return
+    
+    const currentTime = videoRef.current.currentTime || 0
+    const duration = videoRef.current.duration || 1
+    const watchDuration = Math.floor(currentTime)
+    const watchPercentage = Math.min(100, (currentTime / duration) * 100)
+    
+    // Save if watched at least 5 seconds
+    if (watchDuration >= 5) {
+      localStorage.setItem(`video_progress_${id}`, JSON.stringify({
+        time: watchDuration,
+        percent: watchPercentage,
+        updatedAt: Date.now()
+      }))
+    }
+  }
+
   // End watch session when leaving
   const endWatchSession = async () => {
+    // Always save to localStorage when leaving
+    saveProgressToLocal()
+    
     if (!watchSessionId) return
     
     const currentTime = videoRef.current?.currentTime || 0
@@ -211,6 +309,7 @@ export default function Watch() {
     }
 
     const handlePause = () => {
+      saveProgressToLocal()
       updateWatchProgress()
     }
 
@@ -231,15 +330,31 @@ export default function Watch() {
     }
   }, [watchSessionId, id])
 
-  // Handle page visibility change
+  // Handle page visibility change and beforeunload
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
+        saveProgressToLocal()
         updateWatchProgress()
       }
     }
 
     const handleBeforeUnload = () => {
+      // Save to localStorage synchronously before page unloads
+      if (videoRef.current && videoIdRef.current) {
+        const currentTime = videoRef.current.currentTime || 0
+        const duration = videoRef.current.duration || 1
+        const watchDuration = Math.floor(currentTime)
+        const watchPercentage = Math.min(100, (currentTime / duration) * 100)
+        
+        if (watchDuration >= 5) {
+          localStorage.setItem(`video_progress_${videoIdRef.current}`, JSON.stringify({
+            time: watchDuration,
+            percent: watchPercentage,
+            updatedAt: Date.now()
+          }))
+        }
+      }
       endWatchSession()
     }
 
@@ -560,6 +675,30 @@ export default function Watch() {
               category={video.category_name}
               position="mid_roll"
             />
+          )}
+          
+          {/* Resume Playback Prompt */}
+          {showResumePrompt && savedProgress && !showPreRollAd && (
+            <div className="absolute bottom-20 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 bg-dark-900/95 backdrop-blur-sm border border-dark-700 rounded-xl p-4 z-20 shadow-xl">
+              <p className="text-sm font-medium mb-2">Reprendre la lecture ?</p>
+              <p className="text-xs text-dark-400 mb-3">
+                Vous vous êtes arrêté à {Math.floor(savedProgress.time / 60)}:{String(Math.floor(savedProgress.time % 60)).padStart(2, '0')}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleResumePlayback}
+                  className="flex-1 py-2 px-3 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Reprendre
+                </button>
+                <button
+                  onClick={handleStartFromBeginning}
+                  className="flex-1 py-2 px-3 bg-dark-700 hover:bg-dark-600 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Depuis le début
+                </button>
+              </div>
+            </div>
           )}
           
           <video
