@@ -92,12 +92,27 @@ async function calculateUserEarnings(userId, startDate, endDate) {
 
   for (const video of viewStats) {
     const views = parseInt(video.views) || 0;
-    const watchMinutes = Math.floor((parseFloat(video.total_watch_time) || 0) / 60);
-    const retention = parseFloat(video.avg_retention) || 0;
+    const duration = parseInt(video.video_duration) || 0;
+    
+    // Calculer le temps de visionnage estimé
+    // Estimation : durée de la vidéo × nombre de vues × taux de rétention moyen (70%)
+    const estimatedRetention = 0.7;
+    const totalWatchTimeSeconds = duration * views * estimatedRetention;
+    const watchMinutes = Math.floor(totalWatchTimeSeconds / 60);
+    
+    // Si on a des données réelles, les utiliser
+    const actualWatchTime = parseFloat(video.total_watch_time) || 0;
+    const actualRetention = parseFloat(video.avg_retention) || estimatedRetention;
+    
+    const finalWatchMinutes = actualWatchTime > 0 
+      ? Math.floor(actualWatchTime / 60) 
+      : watchMinutes;
+    
+    const retention = actualRetention;
 
     // Calcul des revenus de base
     const viewEarnings = views * EARNING_RATES.PER_VIEW;
-    const watchEarnings = watchMinutes * EARNING_RATES.PER_WATCH_MINUTE;
+    const watchEarnings = finalWatchMinutes * EARNING_RATES.PER_WATCH_MINUTE;
     let videoEarnings = viewEarnings + watchEarnings;
 
     // Bonus d'engagement si bonne rétention
@@ -106,14 +121,14 @@ async function calculateUserEarnings(userId, startDate, endDate) {
     }
 
     totalViews += views;
-    totalWatchMinutes += watchMinutes;
+    totalWatchMinutes += finalWatchMinutes;
     totalEarnings += videoEarnings;
 
     earningsDetails.push({
       video_id: video.video_id,
       video_title: video.video_title,
       views,
-      watch_minutes: watchMinutes,
+      watch_minutes: finalWatchMinutes,
       retention: Math.round(retention * 100),
       earnings: Math.round(videoEarnings * 100) / 100
     });
