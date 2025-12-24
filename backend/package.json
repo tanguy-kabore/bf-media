@@ -7,7 +7,11 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "db:migrate": "node src/database/migrate.js",
-    "db:seed": "node src/database/seed.js"
+    "db:seed": "node src/database/seed.js",
+    "migrate": "node src/database/migrationRunner.js run",
+    "migrate:create": "node src/database/migrationRunner.js create",
+    "migrate:status": "node src/database/migrationRunner.js status",
+    "migrate:rollback": "node src/database/migrationRunner.js rollback"
   },
   "dependencies": {
     "express": "^4.18.2",

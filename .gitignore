@@ -45,6 +45,7 @@ coverage/
 Thumbs.db
 
 # Uploads (keep folder structure but ignore files)
+backend/uploads/ads/*
 backend/uploads/avatars/*
 backend/uploads/banners/*
 backend/uploads/hls/*

@@ -217,70 +217,70 @@ const AdminDashboard = () => {
   const { stats, charts, recentUsers, recentVideos } = data
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Tableau de bord</h1>
-        <button onClick={() => { setLoading(true); fetchDashboard() }} disabled={loading} className="px-4 py-2 bg-dark-700 hover:bg-dark-600 border border-dark-600 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">Tableau de bord</h1>
+        <button onClick={() => { setLoading(true); fetchDashboard() }} disabled={loading} className="px-3 sm:px-4 py-2 bg-dark-700 hover:bg-dark-600 border border-dark-600 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 flex-shrink-0">
           <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           <span className="hidden sm:inline">Actualiser</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon={FiUsers} label="Utilisateurs" value={formatNumber(stats.users)} subValue={`${stats.activeUsers} actifs`} color="primary" />
         <StatCard icon={FiVideo} label="Vidéos" value={formatNumber(stats.videos)} color="green" />
         <StatCard icon={FiEye} label="Vues (24h)" value={formatNumber(stats.viewsToday)} color="yellow" />
         <StatCard icon={FiHardDrive} label="Stockage" value={formatBytes(stats.totalStorage)} color="purple" />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon={FiUserCheck} label="Nouveaux (24h)" value={stats.newUsersToday} color="green" />
         <StatCard icon={FiTrendingUp} label="Vues totales" value={formatNumber(stats.totalViews)} color="primary" />
         <StatCard icon={FiFlag} label="Signalements" value={stats.pendingReports} color="red" />
         <StatCard icon={FiPieChart} label="Chaînes" value={formatNumber(stats.channels)} color="yellow" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <div className="bg-dark-800 rounded-xl border border-dark-700">
-          <div className="p-4 border-b border-dark-700 flex justify-between"><h3 className="font-semibold">Utilisateurs récents</h3></div>
+          <div className="p-3 sm:p-4 border-b border-dark-700 flex justify-between"><h3 className="font-semibold text-sm sm:text-base">Utilisateurs récents</h3></div>
           <div className="divide-y divide-dark-700">
             {recentUsers?.slice(0, 5).map(u => (
-              <div key={u.id} className="p-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-dark-600 flex items-center justify-center text-sm">{u.username?.charAt(0).toUpperCase()}</div>
-                  <div><p className="font-medium text-sm">{u.username}</p><p className="text-xs text-dark-400">{u.email}</p></div>
+              <div key={u.id} className="p-2.5 sm:p-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <div className="w-8 h-8 rounded-full bg-dark-600 flex items-center justify-center text-xs sm:text-sm flex-shrink-0">{u.username?.charAt(0).toUpperCase()}</div>
+                  <div className="min-w-0 flex-1"><p className="font-medium text-xs sm:text-sm truncate">{u.username}</p><p className="text-xs text-dark-400 truncate">{u.email}</p></div>
                 </div>
-                <span className={`px-2 py-0.5 rounded text-xs ${u.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{u.is_active ? 'Actif' : 'Inactif'}</span>
+                <span className={`px-2 py-0.5 rounded text-xs flex-shrink-0 ${u.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{u.is_active ? 'Actif' : 'Inactif'}</span>
               </div>
             ))}
           </div>
         </div>
 
         <div className="bg-dark-800 rounded-xl border border-dark-700">
-          <div className="p-4 border-b border-dark-700"><h3 className="font-semibold">Vidéos récentes</h3></div>
+          <div className="p-3 sm:p-4 border-b border-dark-700"><h3 className="font-semibold text-sm sm:text-base">Vidéos récentes</h3></div>
           <div className="divide-y divide-dark-700">
             {recentVideos?.slice(0, 5).map(v => (
-              <div key={v.id} className="p-3 flex items-center justify-between">
-                <div><p className="font-medium text-sm truncate max-w-[200px]">{v.title}</p><p className="text-xs text-dark-400">{v.channel_name}</p></div>
-                <span className={`px-2 py-0.5 rounded text-xs ${v.status === 'published' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{v.status}</span>
+              <div key={v.id} className="p-2.5 sm:p-3 flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1"><p className="font-medium text-xs sm:text-sm truncate">{v.title}</p><p className="text-xs text-dark-400 truncate">{v.channel_name}</p></div>
+                <span className={`px-2 py-0.5 rounded text-xs flex-shrink-0 ${v.status === 'published' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{v.status}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
-          <h3 className="font-semibold mb-4 flex items-center gap-2"><FiGlobe className="w-4 h-4" /> Top Pays</h3>
-          <div className="space-y-2">{charts?.topCountries?.slice(0, 5).map((c, i) => <div key={i} className="flex justify-between text-sm"><span>{c.country || 'Inconnu'}</span><span className="text-dark-400">{formatNumber(c.count)}</span></div>)}</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        <div className="bg-dark-800 rounded-xl border border-dark-700 p-3 sm:p-4">
+          <h3 className="font-semibold mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base"><FiGlobe className="w-4 h-4" /> Top Pays</h3>
+          <div className="space-y-2">{charts?.topCountries?.slice(0, 5).map((c, i) => <div key={i} className="flex justify-between text-xs sm:text-sm"><span className="truncate">{c.country || 'Inconnu'}</span><span className="text-dark-400 flex-shrink-0 ml-2">{formatNumber(c.count)}</span></div>)}</div>
         </div>
-        <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
-          <h3 className="font-semibold mb-4 flex items-center gap-2"><FiMonitor className="w-4 h-4" /> Appareils</h3>
-          <div className="space-y-2">{charts?.deviceDistribution?.map((d, i) => <div key={i} className="flex justify-between text-sm"><span className="flex items-center gap-2">{d.device_type === 'mobile' ? <FiSmartphone className="w-4 h-4" /> : <FiMonitor className="w-4 h-4" />}{d.device_type || 'Autre'}</span><span className="text-dark-400">{formatNumber(d.count)}</span></div>)}</div>
+        <div className="bg-dark-800 rounded-xl border border-dark-700 p-3 sm:p-4">
+          <h3 className="font-semibold mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base"><FiMonitor className="w-4 h-4" /> Appareils</h3>
+          <div className="space-y-2">{charts?.deviceDistribution?.map((d, i) => <div key={i} className="flex justify-between text-xs sm:text-sm"><span className="flex items-center gap-2 truncate">{d.device_type === 'mobile' ? <FiSmartphone className="w-4 h-4" /> : <FiMonitor className="w-4 h-4" />}{d.device_type || 'Autre'}</span><span className="text-dark-400 flex-shrink-0 ml-2">{formatNumber(d.count)}</span></div>)}</div>
         </div>
-        <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
-          <h3 className="font-semibold mb-4 flex items-center gap-2"><FiGlobe className="w-4 h-4" /> Navigateurs</h3>
-          <div className="space-y-2">{charts?.browserDistribution?.slice(0, 5).map((b, i) => <div key={i} className="flex justify-between text-sm"><span>{b.browser || 'Inconnu'}</span><span className="text-dark-400">{formatNumber(b.count)}</span></div>)}</div>
+        <div className="bg-dark-800 rounded-xl border border-dark-700 p-3 sm:p-4">
+          <h3 className="font-semibold mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base"><FiGlobe className="w-4 h-4" /> Navigateurs</h3>
+          <div className="space-y-2">{charts?.browserDistribution?.slice(0, 5).map((b, i) => <div key={i} className="flex justify-between text-xs sm:text-sm"><span className="truncate">{b.browser || 'Inconnu'}</span><span className="text-dark-400 flex-shrink-0 ml-2">{formatNumber(b.count)}</span></div>)}</div>
         </div>
       </div>
     </div>
@@ -1549,27 +1549,101 @@ const AdminVerifications = () => {
 
 const AdminAds = () => {
   const [ads, setAds] = useState([])
+  const [filteredAds, setFilteredAds] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingAd, setEditingAd] = useState(null)
+  const [filters, setFilters] = useState({ status: '', type: '', position: '' })
 
   useEffect(() => { fetchAds() }, [])
+  useEffect(() => { applyFilters() }, [ads, filters])
+  
   const fetchAds = async () => { setLoading(true); try { const res = await api.get('/admin/ads'); setAds(res.data.ads || []) } catch (e) { console.error(e) } finally { setLoading(false) } }
+  
+  const applyFilters = () => {
+    let result = [...ads]
+    if (filters.status) result = result.filter(a => a.status === filters.status)
+    if (filters.type) result = result.filter(a => a.ad_type === filters.type)
+    if (filters.position) result = result.filter(a => a.position === filters.position)
+    setFilteredAds(result)
+  }
   const saveAd = async (data) => { try { if (editingAd) await api.patch(`/admin/ads/${editingAd.id}`, data); else await api.post('/admin/ads', data); fetchAds(); setShowModal(false); setEditingAd(null) } catch (e) { console.error(e) } }
   const deleteAd = async (id) => { if (!confirm('Supprimer ?')) return; try { await api.delete(`/admin/ads/${id}`); fetchAds() } catch (e) { console.error(e) } }
   const toggleStatus = async (ad) => { try { await api.patch(`/admin/ads/${ad.id}`, { status: ad.status === 'active' ? 'paused' : 'active' }); fetchAds() } catch (e) { console.error(e) } }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Publicités</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold">Publicités</h1>
         <button 
           onClick={() => { setEditingAd(null); setShowModal(true) }} 
-          className="px-4 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl flex items-center gap-2 font-medium shadow-lg shadow-primary-500/25 transition-all hover:shadow-primary-500/40 hover:scale-[1.02]"
+          className="px-4 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl flex items-center justify-center gap-2 font-medium shadow-lg shadow-primary-500/25 transition-all hover:shadow-primary-500/40 hover:scale-[1.02]"
         >
           <FiPlus className="w-5 h-5" /> 
           <span>Nouvelle publicité</span>
         </button>
+      </div>
+      
+      {/* Filtres */}
+      <div className="bg-dark-800 rounded-xl border border-dark-700 p-3 sm:p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <FiSearch className="w-4 h-4 text-dark-400" />
+          <h3 className="font-semibold text-sm sm:text-base">Filtres</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs sm:text-sm text-dark-400 mb-1.5">Statut</label>
+            <select 
+              value={filters.status} 
+              onChange={e => setFilters({...filters, status: e.target.value})}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-sm focus:outline-none focus:border-primary-500"
+            >
+              <option value="">Tous les statuts</option>
+              <option value="active">Actif</option>
+              <option value="paused">En pause</option>
+              <option value="draft">Brouillon</option>
+              <option value="completed">Terminé</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs sm:text-sm text-dark-400 mb-1.5">Type</label>
+            <select 
+              value={filters.type} 
+              onChange={e => setFilters({...filters, type: e.target.value})}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-sm focus:outline-none focus:border-primary-500"
+            >
+              <option value="">Tous les types</option>
+              <option value="banner">Bannière</option>
+              <option value="video">Vidéo</option>
+              <option value="sponsored">Sponsorisé</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs sm:text-sm text-dark-400 mb-1.5">Position</label>
+            <select 
+              value={filters.position} 
+              onChange={e => setFilters({...filters, position: e.target.value})}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-sm focus:outline-none focus:border-primary-500"
+            >
+              <option value="">Toutes les positions</option>
+              <option value="header">En-tête</option>
+              <option value="sidebar">Barre latérale</option>
+              <option value="in_feed">Dans le flux</option>
+              <option value="footer">Pied de page</option>
+              <option value="pre_roll">Pré-roll</option>
+              <option value="mid_roll">Mid-roll</option>
+              <option value="post_roll">Post-roll</option>
+            </select>
+          </div>
+        </div>
+        {(filters.status || filters.type || filters.position) && (
+          <button 
+            onClick={() => setFilters({ status: '', type: '', position: '' })}
+            className="mt-3 text-xs sm:text-sm text-primary-400 hover:text-primary-300 flex items-center gap-1"
+          >
+            <FiX className="w-4 h-4" /> Réinitialiser les filtres
+          </button>
+        )}
       </div>
       {/* Desktop Table */}
       <div className="hidden md:block bg-dark-800 rounded-xl border border-dark-700 overflow-hidden overflow-x-auto">
@@ -1577,8 +1651,8 @@ const AdminAds = () => {
           <thead className="bg-dark-700/50"><tr><th className="px-4 py-3 text-left text-sm">Titre</th><th className="px-4 py-3 text-left text-sm">Type</th><th className="px-4 py-3 text-left text-sm">Statut</th><th className="px-4 py-3 text-left text-sm">Impressions</th><th className="px-4 py-3 text-left text-sm">Clics</th><th className="px-4 py-3 text-right text-sm">Actions</th></tr></thead>
           <tbody className="divide-y divide-dark-700">
             {loading ? <tr><td colSpan={6} className="py-8 text-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500 mx-auto"></div></td></tr> :
-            ads.length === 0 ? <tr><td colSpan={6} className="py-8 text-center text-dark-400">Aucune publicité</td></tr> :
-            ads.map(a => (
+            filteredAds.length === 0 ? <tr><td colSpan={6} className="py-8 text-center text-dark-400">{ads.length === 0 ? 'Aucune publicité' : 'Aucun résultat'}</td></tr> :
+            filteredAds.map(a => (
               <tr key={a.id} className="hover:bg-dark-700/30">
                 <td className="px-4 py-3 font-medium">
                   <div>
@@ -1600,8 +1674,8 @@ const AdminAds = () => {
       {/* Mobile Cards */}
       <div className="md:hidden space-y-3">
         {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div></div> :
-        ads.length === 0 ? <div className="text-center py-8 text-dark-400">Aucune publicité</div> :
-        ads.map(a => (
+        filteredAds.length === 0 ? <div className="text-center py-8 text-dark-400">{ads.length === 0 ? 'Aucune publicité' : 'Aucun résultat'}</div> :
+        filteredAds.map(a => (
           <div key={a.id} className="bg-dark-800 rounded-xl border border-dark-700 p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="min-w-0 flex-1 mr-2">
@@ -2500,14 +2574,14 @@ const AdminAdmins = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <h1 className="text-2xl font-bold">Gestion des Administrateurs</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold">Gestion des Administrateurs</h1>
         <div className="flex gap-2">
-          <button onClick={() => setShowPromoteModal(true)} className="px-4 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg flex items-center gap-2">
-            <FiPlus className="w-4 h-4" /> Promouvoir
+          <button onClick={() => setShowPromoteModal(true)} className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg flex items-center justify-center gap-2 text-sm sm:text-base">
+            <FiPlus className="w-4 h-4" /> <span className="hidden sm:inline">Promouvoir</span><span className="sm:hidden">Ajouter</span>
           </button>
-          <button onClick={fetchAdmins} disabled={loading} className="px-4 py-2 bg-dark-700 hover:bg-dark-600 rounded-lg">
+          <button onClick={fetchAdmins} disabled={loading} className="px-3 sm:px-4 py-2 bg-dark-700 hover:bg-dark-600 rounded-lg">
             <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -2522,45 +2596,50 @@ const AdminAdmins = () => {
         ) : (
           <div className="divide-y divide-dark-700">
             {admins.map(admin => (
-              <div key={admin.id} className="p-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-dark-700 flex items-center justify-center overflow-hidden">
-                    {admin.avatar_url ? <img src={admin.avatar_url} className="w-full h-full object-cover" /> : admin.username?.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="font-medium">{admin.display_name || admin.username}</p>
-                    <p className="text-sm text-dark-400">{admin.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`px-2 py-1 rounded text-xs ${roleColors[admin.role]}`}>
-                    {admin.role === 'superadmin' ? 'Super Admin' : 'Admin'}
-                  </span>
-                  {admin.role !== 'superadmin' && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => updateAdmin(admin.id, { isActive: !admin.is_active })}
-                        className={`p-2 rounded-lg ${admin.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}
-                        title={admin.is_active ? 'Désactiver' : 'Activer'}
-                      >
-                        {admin.is_active ? <FiToggleRight className="w-5 h-5" /> : <FiToggleLeft className="w-5 h-5" />}
-                      </button>
-                      <button
-                        onClick={() => updateAdmin(admin.id, { role: 'user' })}
-                        className="p-2 bg-yellow-500/20 text-yellow-400 rounded-lg"
-                        title="Rétrograder"
-                      >
-                        <FiUsers className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => deleteAdmin(admin.id)}
-                        className="p-2 bg-red-500/20 text-red-400 rounded-lg"
-                        title="Supprimer"
-                      >
-                        <FiTrash2 className="w-5 h-5" />
-                      </button>
+              <div key={admin.id} className="p-3 sm:p-4">
+                <div className="flex items-start sm:items-center justify-between gap-3 sm:gap-4">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-dark-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {admin.avatar_url ? <img src={admin.avatar_url} className="w-full h-full object-cover" alt="" /> : <span className="text-sm sm:text-base">{admin.username?.charAt(0).toUpperCase()}</span>}
                     </div>
-                  )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm sm:text-base truncate">{admin.display_name || admin.username}</p>
+                      <p className="text-xs sm:text-sm text-dark-400 truncate">{admin.email}</p>
+                      <span className={`inline-block mt-1 sm:hidden px-2 py-0.5 rounded text-xs ${roleColors[admin.role]}`}>
+                        {admin.role === 'superadmin' ? 'Super Admin' : 'Admin'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-3 flex-shrink-0">
+                    <span className={`hidden sm:inline-block px-2 py-1 rounded text-xs ${roleColors[admin.role]}`}>
+                      {admin.role === 'superadmin' ? 'Super Admin' : 'Admin'}
+                    </span>
+                    {admin.role !== 'superadmin' && (
+                      <div className="flex gap-1.5 sm:gap-2">
+                        <button
+                          onClick={() => updateAdmin(admin.id, { isActive: !admin.is_active })}
+                          className={`p-1.5 sm:p-2 rounded-lg ${admin.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}
+                          title={admin.is_active ? 'Désactiver' : 'Activer'}
+                        >
+                          {admin.is_active ? <FiToggleRight className="w-4 h-4 sm:w-5 sm:h-5" /> : <FiToggleLeft className="w-4 h-4 sm:w-5 sm:h-5" />}
+                        </button>
+                        <button
+                          onClick={() => updateAdmin(admin.id, { role: 'user' })}
+                          className="p-1.5 sm:p-2 bg-yellow-500/20 text-yellow-400 rounded-lg"
+                          title="Rétrograder"
+                        >
+                          <FiUsers className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                        <button
+                          onClick={() => deleteAdmin(admin.id)}
+                          className="p-1.5 sm:p-2 bg-red-500/20 text-red-400 rounded-lg"
+                          title="Supprimer"
+                        >
+                          <FiTrash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -2570,44 +2649,44 @@ const AdminAdmins = () => {
 
       {/* Promote Modal */}
       {showPromoteModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-xl border border-dark-700 w-full max-w-md">
-            <div className="flex items-center justify-between p-4 border-b border-dark-700">
-              <h3 className="font-semibold">Promouvoir un utilisateur</h3>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-dark-800 rounded-xl border border-dark-700 w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-dark-700 flex-shrink-0">
+              <h3 className="font-semibold text-sm sm:text-base">Promouvoir un utilisateur</h3>
               <button onClick={() => { setShowPromoteModal(false); setSearchResults([]) }} className="p-2 hover:bg-dark-700 rounded-lg">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-4 space-y-4">
+            <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Rechercher par username ou email..."
+                  placeholder="Rechercher..."
                   value={searchUser}
                   onChange={e => setSearchUser(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && searchUsers()}
-                  className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
+                  className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-sm sm:text-base"
                 />
-                <button onClick={searchUsers} className="px-4 py-2 bg-primary-500 rounded-lg">
+                <button onClick={searchUsers} className="px-3 sm:px-4 py-2 bg-primary-500 rounded-lg flex-shrink-0">
                   <FiSearch className="w-5 h-5" />
                 </button>
               </div>
               {searchResults.length > 0 && (
                 <div className="divide-y divide-dark-700 max-h-60 overflow-y-auto">
                   {searchResults.map(user => (
-                    <div key={user.id} className="py-2 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center">
-                          {user.username?.charAt(0).toUpperCase()}
+                    <div key={user.id} className="py-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs">{user.username?.charAt(0).toUpperCase()}</span>
                         </div>
-                        <div>
-                          <p className="font-medium text-sm">{user.username}</p>
-                          <p className="text-xs text-dark-400">{user.role}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm truncate">{user.username}</p>
+                          <p className="text-xs text-dark-400 truncate">{user.role}</p>
                         </div>
                       </div>
                       <button
                         onClick={() => promoteToAdmin(user.id)}
-                        className="px-3 py-1 bg-primary-500 hover:bg-primary-600 rounded text-sm"
+                        className="px-3 py-1 bg-primary-500 hover:bg-primary-600 rounded text-xs sm:text-sm flex-shrink-0"
                       >
                         Promouvoir
                       </button>
