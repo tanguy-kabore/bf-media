@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiPlay, FiCheck, FiAlertCircle } from 'react-icons/fi'
+import { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiPlay, FiCheck, FiAlertCircle, FiInfo } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
 import toast from 'react-hot-toast'
 
@@ -16,16 +16,34 @@ export default function Register() {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
+  const [emailPrefixWarning, setEmailPrefixWarning] = useState('')
+  const [showTooltip, setShowTooltip] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    // Pour le préfixe email, n'autoriser que lettres, chiffres, points et tirets
+    
     if (name === 'emailPrefix') {
+      // Détecter les caractères interdits AVANT de les supprimer
+      const forbiddenChars = value.match(/[@\s,;:!?#$%^&*()+=\[\]{}|\\/<>"'`~]/g)
+      
+      if (forbiddenChars) {
+        const uniqueChars = [...new Set(forbiddenChars)].join(' ')
+        setEmailPrefixWarning(`⚠️ Caractères interdits détectés : ${uniqueChars}`)
+        setShowTooltip(true)
+        
+        // Masquer l'info-bulle après 3 secondes
+        setTimeout(() => setShowTooltip(false), 3000)
+      } else {
+        setEmailPrefixWarning('')
+      }
+      
+      // Ne garder que les caractères autorisés : lettres, chiffres, points, tirets et underscores
       const sanitized = value.toLowerCase().replace(/[^a-z0-9._-]/g, '')
       setFormData({ ...formData, [name]: sanitized })
     } else {
       setFormData({ ...formData, [name]: value })
     }
+    
     // Effacer l'erreur quand l'utilisateur modifie le champ
     if (errors[name]) {
       setErrors({ ...errors, [name]: null })
@@ -109,7 +127,7 @@ export default function Register() {
 
         <form onSubmit={handleSubmit} className="bg-dark-900/50 backdrop-blur-sm border border-dark-800 rounded-2xl p-6 sm:p-8 space-y-4">
           {/* Email TIPOKO */}
-          <div>
+          <div className="relative">
             <label className="block text-sm font-medium mb-2">
               Votre identifiant TIPOKO
               <span className="text-dark-400 font-normal ml-1">(votre adresse email)</span>
@@ -122,22 +140,61 @@ export default function Register() {
                   name="emailPrefix"
                   value={formData.emailPrefix}
                   onChange={handleChange}
+                  onFocus={() => setShowTooltip(false)}
                   placeholder="votre.identifiant"
-                  className={`input pl-10 rounded-r-none border-r-0 ${errors.emailPrefix ? 'border-red-500 focus:border-red-500' : ''}`}
+                  className={`input pl-10 rounded-r-none border-r-0 transition-all ${
+                    errors.emailPrefix ? 'border-red-500 focus:border-red-500' : 
+                    emailPrefixWarning ? 'border-yellow-500 focus:border-yellow-500' : ''
+                  }`}
                   required
+                  autoComplete="off"
                 />
               </div>
-              <span className="inline-flex items-center px-4 bg-dark-700 border border-dark-600 border-l-0 rounded-r-xl text-dark-300 text-sm font-medium">
+              <span className="inline-flex items-center px-3 sm:px-4 bg-dark-700 border border-dark-600 border-l-0 rounded-r-xl text-dark-300 text-xs sm:text-sm font-medium">
                 @tipoko.bf
               </span>
             </div>
+            
+            {/* Info-bulle moderne pour caractères interdits */}
+            {showTooltip && emailPrefixWarning && (
+              <div className="absolute z-50 left-0 right-0 mt-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 backdrop-blur-sm border border-yellow-500/50 rounded-xl p-3 sm:p-4 shadow-xl shadow-yellow-500/10">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                      <FiAlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs sm:text-sm font-semibold text-yellow-400 mb-1">Attention !</p>
+                      <p className="text-xs sm:text-sm text-yellow-200/90 mb-2">{emailPrefixWarning}</p>
+                      <div className="bg-dark-900/50 rounded-lg p-2 sm:p-3 space-y-1.5">
+                        <p className="text-xs text-dark-300 flex items-center gap-1.5">
+                          <FiCheck className="w-3 h-3 text-green-400 flex-shrink-0" />
+                          <span>Utilisez uniquement : <span className="font-mono text-green-400">a-z 0-9 . - _</span></span>
+                        </p>
+                        <p className="text-xs text-dark-300 flex items-center gap-1.5">
+                          <FiInfo className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                          <span>Exemple : <span className="font-mono text-blue-400">jean.dupont</span> ou <span className="font-mono text-blue-400">user_123</span></span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {errors.emailPrefix && (
               <p className="mt-1 text-sm text-red-400 flex items-center gap-1">
                 <FiAlertCircle className="w-4 h-4" />
                 {errors.emailPrefix}
               </p>
             )}
-            <p className="mt-1 text-xs text-dark-500">Cet identifiant sera votre adresse email sur TIPOKO</p>
+            <div className="mt-1 space-y-1">
+              <p className="text-xs text-dark-500">Cet identifiant sera votre adresse email sur TIPOKO</p>
+              <p className="text-xs text-primary-400/70 flex items-center gap-1">
+                <FiInfo className="w-3 h-3" />
+                N'entrez que le préfixe (avant @tipoko.bf)
+              </p>
+            </div>
           </div>
 
           {/* Pseudo (username) */}
@@ -285,7 +342,10 @@ export default function Register() {
         </form>
 
         <p className="text-center mt-6 text-dark-500 text-sm">
-          En créant un compte, vous acceptez nos conditions d'utilisation
+          En créant un compte, vous acceptez nos{' '}
+          <Link to="/terms" className="text-primary-400 hover:text-primary-300 underline transition-colors">
+            conditions d'utilisation
+          </Link>
         </p>
       </div>
     </div>

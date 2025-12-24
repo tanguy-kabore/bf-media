@@ -992,6 +992,9 @@ export default function Studio() {
           <NavLink to="/studio/analytics" className={({ isActive }) => `sidebar-link whitespace-nowrap ${isActive ? 'active' : ''}`}>
             <FiBarChart2 /> Analytics
           </NavLink>
+          <NavLink to="/earnings" className={({ isActive }) => `sidebar-link whitespace-nowrap ${isActive ? 'active' : ''}`}>
+            <FiDollarSign /> Mes revenus
+          </NavLink>
           <NavLink to="/studio/settings" className={({ isActive }) => `sidebar-link whitespace-nowrap ${isActive ? 'active' : ''}`}>
             <FiSettings /> Paramètres
           </NavLink>

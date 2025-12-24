@@ -20,8 +20,10 @@ import Category from './pages/Category'
 import Explore from './pages/Explore'
 import Playlist from './pages/Playlist'
 import Admin from './pages/Admin'
+import Earnings from './pages/Earnings'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Terms from './pages/Terms'
 import License from './pages/License'
 import NotFound from './pages/NotFound'
 
@@ -64,6 +66,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/terms" element={<Terms />} />
       <Route path="/admin/*" element={<Admin />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
@@ -78,6 +81,7 @@ function App() {
         <Route path="/saved" element={<Saved />} />
         <Route path="/liked" element={<Liked />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/earnings" element={<Earnings />} />
         <Route path="/channels/manage" element={<ManageChannels />} />
         <Route path="/category/:slug" element={<Category />} />
         <Route path="/playlist/:id" element={<Playlist />} />

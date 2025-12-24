@@ -1,6 +1,6 @@
 import { NavLink, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { FiHome, FiCompass, FiPlayCircle, FiClock, FiBookmark, FiThumbsUp, FiFilm, FiMusic, FiMonitor, FiTrendingUp } from 'react-icons/fi'
+import { FiHome, FiCompass, FiPlayCircle, FiClock, FiBookmark, FiThumbsUp, FiFilm, FiMusic, FiMonitor, FiTrendingUp, FiDollarSign } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
 import api from '../services/api'
 

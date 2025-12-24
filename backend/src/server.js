@@ -24,6 +24,8 @@ const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
 const streamRoutes = require('./routes/stream');
 const platformRoutes = require('./routes/platform');
+const earningsRoutes = require('./routes/earnings');
+const adminEarningsRoutes = require('./routes/adminEarnings');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
@@ -118,6 +120,8 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/stream', streamRoutes);
+app.use('/api/earnings', earningsRoutes);
+app.use('/api/admin/earnings', adminEarningsRoutes);
 app.use('/api/ads', require('./routes/ads'));
 
 // Health check endpoint

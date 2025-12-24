@@ -6,7 +6,7 @@ import {
   FiGlobe, FiMonitor, FiSmartphone, FiSearch, FiEdit, FiTrash2, 
   FiToggleLeft, FiToggleRight, FiPlus, FiX, FiRefreshCw, FiArrowLeft,
   FiMenu, FiBell, FiLogOut, FiClock, FiExternalLink, FiUpload, FiLink,
-  FiDownload, FiShield
+  FiDownload, FiShield, FiCalendar, FiCheck
 } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
 import usePlatformStore from '../store/platformStore'
@@ -84,6 +84,7 @@ export default function Admin() {
     { id: 'reports', icon: FiFlag, label: 'Signalements' },
     { id: 'verifications', icon: FiUserCheck, label: 'Vérifications' },
     { id: 'ads', icon: FiDollarSign, label: 'Publicités' },
+    { id: 'earnings', icon: FiTrendingUp, label: 'Revenus' },
     { id: 'logs', icon: FiClock, label: 'Logs activité' },
     ...(isSuperAdmin ? [{ id: 'admins', icon: FiUserCheck, label: 'Admins' }] : []),
     { id: 'settings', icon: FiSettings, label: 'Paramètres' }
@@ -170,6 +171,7 @@ export default function Admin() {
             {activeTab === 'reports' && <AdminReports />}
             {activeTab === 'verifications' && <AdminVerifications />}
             {activeTab === 'ads' && <AdminAds />}
+            {activeTab === 'earnings' && <AdminEarnings />}
             {activeTab === 'logs' && <AdminLogs />}
             {activeTab === 'admins' && isSuperAdmin && <AdminAdmins />}
             {activeTab === 'settings' && <AdminSettings />}
@@ -2694,6 +2696,325 @@ const AdminAdmins = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Earnings Management
+const AdminEarnings = () => {
+  const [users, setUsers] = useState([])
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [selectedUsers, setSelectedUsers] = useState([])
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentUser, setPaymentUser] = useState(null)
+  const [paymentForm, setPaymentForm] = useState({ amount: '', payment_method: 'bank_transfer', notes: '' })
+  const [search, setSearch] = useState('')
+  const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 1 })
+
+  useEffect(() => { fetchStats(); fetchUsers() }, [pagination.page, search])
+
+  const fetchStats = async () => {
+    try {
+      const res = await api.get('/admin/earnings/stats')
+      setStats(res.data)
+    } catch (e) { console.error(e) }
+  }
+
+  const fetchUsers = async () => {
+    setLoading(true)
+    try {
+      const res = await api.get(`/admin/earnings/users?page=${pagination.page}&search=${search}`)
+      setUsers(res.data.users)
+      setPagination(res.data.pagination)
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+
+  const verifyUser = async (userId) => {
+    if (!confirm('Vérifier ce compte ?')) return
+    try {
+      await api.post(`/admin/earnings/verify/${userId}`)
+      fetchUsers()
+    } catch (e) { alert(e.response?.data?.error || 'Erreur') }
+  }
+
+  const approveEarnings = async (userId) => {
+    if (!confirm('Approuver les revenus en attente ?')) return
+    try {
+      await api.post(`/admin/earnings/approve/${userId}`)
+      fetchUsers()
+    } catch (e) { alert(e.response?.data?.error || 'Erreur') }
+  }
+
+  const openPaymentModal = (user) => {
+    setPaymentUser(user)
+    setPaymentForm({ amount: user.pending_earnings || 0, payment_method: 'bank_transfer', notes: '' })
+    setShowPaymentModal(true)
+  }
+
+  const payUser = async () => {
+    if (!paymentUser || !paymentForm.amount) return
+    try {
+      await api.post(`/admin/earnings/pay/${paymentUser.id}`, paymentForm)
+      alert('Paiement effectué avec succès')
+      setShowPaymentModal(false)
+      fetchUsers()
+      fetchStats()
+    } catch (e) { alert(e.response?.data?.error || 'Erreur') }
+  }
+
+  const payMultiple = async () => {
+    if (selectedUsers.length === 0) return alert('Sélectionnez au moins un utilisateur')
+    if (!confirm(`Payer ${selectedUsers.length} utilisateur(s) ?`)) return
+    try {
+      await api.post('/admin/earnings/pay-multiple', { user_ids: selectedUsers, payment_method: 'bank_transfer' })
+      alert('Paiements effectués')
+      setSelectedUsers([])
+      fetchUsers()
+      fetchStats()
+    } catch (e) { alert(e.response?.data?.error || 'Erreur') }
+  }
+
+  const toggleUserSelection = (userId) => {
+    setSelectedUsers(prev => prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId])
+  }
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', minimumFractionDigits: 0 }).format(amount || 0)
+  }
+
+  const calculateWeeklyEarnings = async () => {
+    if (!confirm('Calculer les revenus de cette semaine pour tous les créateurs vérifiés ?')) return
+    try {
+      const res = await api.post('/admin/earnings/calculate-weekly')
+      alert(`Calcul terminé: ${res.data.results?.length || 0} créateur(s) traité(s)`)
+      fetchUsers()
+      fetchStats()
+    } catch (e) { alert(e.response?.data?.error || 'Erreur') }
+  }
+
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold">Gestion des revenus</h1>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={calculateWeeklyEarnings} className="px-3 sm:px-4 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg text-sm sm:text-base flex items-center gap-2">
+            <FiCalendar className="w-4 h-4" />
+            <span className="hidden sm:inline">Calculer semaine</span>
+          </button>
+          {selectedUsers.length > 0 && (
+            <button onClick={payMultiple} className="px-3 sm:px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg text-sm sm:text-base">
+              Payer {selectedUsers.length}
+            </button>
+          )}
+          <button onClick={fetchUsers} className="px-3 sm:px-4 py-2 bg-dark-700 hover:bg-dark-600 rounded-lg">
+            <FiRefreshCw className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-dark-800 rounded-xl border border-dark-700 p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-dark-400 mb-1">Créateurs vérifiés</p>
+            <p className="text-xl sm:text-2xl font-bold">{stats.creators.verified}</p>
+          </div>
+          <div className="bg-dark-800 rounded-xl border border-dark-700 p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-dark-400 mb-1">Revenus totaux</p>
+            <p className="text-xl sm:text-2xl font-bold">{formatCurrency(stats.earnings.total)}</p>
+          </div>
+          <div className="bg-dark-800 rounded-xl border border-dark-700 p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-dark-400 mb-1">À payer</p>
+            <p className="text-xl sm:text-2xl font-bold text-yellow-400">{formatCurrency(stats.earnings.approved)}</p>
+          </div>
+          <div className="bg-dark-800 rounded-xl border border-dark-700 p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-dark-400 mb-1">Déjà payé</p>
+            <p className="text-xl sm:text-2xl font-bold text-green-400">{formatCurrency(stats.earnings.paid)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Search */}
+      <div className="bg-dark-800 rounded-xl border border-dark-700 p-3 sm:p-4">
+        <input
+          type="text"
+          placeholder="Rechercher un utilisateur..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-sm"
+        />
+      </div>
+
+      {/* Users List */}
+      <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div></div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-12 text-dark-400">Aucun utilisateur</div>
+        ) : (
+          <>
+            {/* Mobile Cards */}
+            <div className="block md:hidden divide-y divide-dark-700">
+              {users.map(user => (
+                <div key={user.id} className="p-3 sm:p-4">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.includes(user.id)}
+                      onChange={() => toggleUserSelection(user.id)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="font-medium text-sm truncate">{user.display_name || user.username}</p>
+                        {user.is_verified && <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded text-xs">Vérifié</span>}
+                      </div>
+                      <p className="text-xs text-dark-400 mb-2">{user.email}</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                        <div><span className="text-dark-500">Total:</span> <span className="font-semibold">{formatCurrency(user.total_earnings)}</span></div>
+                        <div><span className="text-dark-500">En attente:</span> <span className="font-semibold text-yellow-400">{formatCurrency(user.pending_earnings)}</span></div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {!user.is_verified && (
+                          <button onClick={() => verifyUser(user.id)} className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-xs">
+                            Vérifier
+                          </button>
+                        )}
+                        {user.pending_earnings > 0 && (
+                          <>
+                            <button onClick={() => approveEarnings(user.id)} className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">
+                              Approuver
+                            </button>
+                            <button onClick={() => openPaymentModal(user)} className="px-3 py-1 bg-green-500/20 text-green-400 rounded text-xs">
+                              Payer
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-dark-700/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left"><input type="checkbox" onChange={e => setSelectedUsers(e.target.checked ? users.map(u => u.id) : [])} /></th>
+                    <th className="px-4 py-3 text-left text-sm">Utilisateur</th>
+                    <th className="px-4 py-3 text-left text-sm">Statut</th>
+                    <th className="px-4 py-3 text-left text-sm">Total</th>
+                    <th className="px-4 py-3 text-left text-sm">En attente</th>
+                    <th className="px-4 py-3 text-left text-sm">Payé</th>
+                    <th className="px-4 py-3 text-right text-sm">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-dark-700">
+                  {users.map(user => (
+                    <tr key={user.id} className="hover:bg-dark-700/30">
+                      <td className="px-4 py-3">
+                        <input type="checkbox" checked={selectedUsers.includes(user.id)} onChange={() => toggleUserSelection(user.id)} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center overflow-hidden">
+                            {user.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover" alt="" /> : user.username?.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{user.display_name || user.username}</p>
+                            <p className="text-xs text-dark-400">{user.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {user.is_verified ? (
+                          <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">Vérifié</span>
+                        ) : (
+                          <span className="px-2 py-1 bg-dark-600 text-dark-400 rounded text-xs">Non vérifié</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm">{formatCurrency(user.total_earnings)}</td>
+                      <td className="px-4 py-3 text-sm text-yellow-400">{formatCurrency(user.pending_earnings)}</td>
+                      <td className="px-4 py-3 text-sm text-green-400">{formatCurrency(user.paid_earnings)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-2">
+                          {!user.is_verified && (
+                            <button onClick={() => verifyUser(user.id)} className="p-2 hover:bg-blue-500/20 rounded-lg text-blue-400" title="Vérifier">
+                              <FiCheck className="w-4 h-4" />
+                            </button>
+                          )}
+                          {user.pending_earnings > 0 && (
+                            <button onClick={() => openPaymentModal(user)} className="p-2 hover:bg-green-500/20 rounded-lg text-green-400" title="Payer">
+                              <FiDollarSign className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Payment Modal */}
+      {showPaymentModal && paymentUser && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-dark-800 rounded-xl border border-dark-700 w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b border-dark-700">
+              <h3 className="font-semibold">Effectuer un paiement</h3>
+              <button onClick={() => setShowPaymentModal(false)} className="p-2 hover:bg-dark-700 rounded-lg">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <p className="text-sm text-dark-400 mb-1">Utilisateur</p>
+                <p className="font-medium">{paymentUser.display_name || paymentUser.username}</p>
+              </div>
+              <div>
+                <label className="block text-sm mb-2">Montant (XOF)</label>
+                <input
+                  type="number"
+                  value={paymentForm.amount}
+                  onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm mb-2">Méthode de paiement</label>
+                <select
+                  value={paymentForm.payment_method}
+                  onChange={e => setPaymentForm({...paymentForm, payment_method: e.target.value})}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
+                >
+                  <option value="bank_transfer">Virement bancaire</option>
+                  <option value="mobile_money">Mobile Money</option>
+                  <option value="cash">Espèces</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm mb-2">Notes (optionnel)</label>
+                <textarea
+                  value={paymentForm.notes}
+                  onChange={e => setPaymentForm({...paymentForm, notes: e.target.value})}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
+                  rows="3"
+                />
+              </div>
+              <button onClick={payUser} className="w-full py-3 bg-green-500 hover:bg-green-600 rounded-lg font-medium">
+                Confirmer le paiement
+              </button>
             </div>
           </div>
         </div>
