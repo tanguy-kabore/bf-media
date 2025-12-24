@@ -50,6 +50,28 @@ module.exports = {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    // Table pour les revenus hebdomadaires
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS weekly_earnings (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL,
+        week_number VARCHAR(10) NOT NULL,
+        week_start DATE NOT NULL,
+        week_end DATE NOT NULL,
+        total_views INT DEFAULT 0,
+        total_watch_minutes INT DEFAULT 0,
+        total_earnings DECIMAL(10, 2) DEFAULT 0,
+        status ENUM('pending', 'approved', 'paid') DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_user_week (user_id, week_number),
+        INDEX idx_user_week (user_id, week_number),
+        INDEX idx_week_number (week_number),
+        INDEX idx_status (status)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
     // Table pour l'historique des transactions
     await connection.query(`
       CREATE TABLE IF NOT EXISTS payment_transactions (
@@ -103,6 +125,7 @@ module.exports = {
 
   async down(connection) {
     await connection.query('DROP TABLE IF EXISTS payment_transactions');
+    await connection.query('DROP TABLE IF EXISTS weekly_earnings');
     await connection.query('DROP TABLE IF EXISTS payments');
     await connection.query('DROP TABLE IF EXISTS user_earnings');
     

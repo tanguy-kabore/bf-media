@@ -61,17 +61,18 @@ module.exports.getWeekNumber = getWeekNumber;
 async function calculateUserEarnings(userId, startDate, endDate) {
   try {
     // Récupérer les statistiques de vues pour la période
-    // Utiliser views_count de la table videos si video_views n'existe pas
+    // Utiliser view_count de la table videos via channels
     const viewStats = await query(`
       SELECT 
         v.id as video_id,
         v.title as video_title,
         v.duration as video_duration,
-        v.views_count as views,
+        v.view_count as views,
         0 as total_watch_time,
         0 as avg_retention
       FROM videos v
-      WHERE v.user_id = ? AND v.views_count > 0
+      INNER JOIN channels c ON v.channel_id = c.id
+      WHERE c.user_id = ? AND v.view_count > 0
     `, [userId]);
     
     if (!viewStats || viewStats.length === 0) {
@@ -249,10 +250,11 @@ async function getUserRealTimeStats(userId) {
     const globalStatsResult = await query(`
       SELECT 
         COUNT(DISTINCT v.id) as total_videos,
-        COALESCE(SUM(v.views_count), 0) as total_views,
-        COALESCE(SUM(v.duration * v.views_count), 0) as potential_watch_time
+        COALESCE(SUM(v.view_count), 0) as total_views,
+        COALESCE(SUM(v.duration * v.view_count), 0) as potential_watch_time
       FROM videos v
-      WHERE v.user_id = ?
+      INNER JOIN channels c ON v.channel_id = c.id
+      WHERE c.user_id = ?
     `, [userId]);
     
     const globalStats = globalStatsResult[0] || { total_videos: 0, total_views: 0, potential_watch_time: 0 };
