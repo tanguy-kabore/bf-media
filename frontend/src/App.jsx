@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import useAuthStore from './store/authStore'
 import usePlatformStore from './store/platformStore'
 import Layout from './components/Layout'
+import MaintenanceMode from './components/MaintenanceMode'
 import Home from './pages/Home'
 import Watch from './pages/Watch'
 import Channel from './pages/Channel'
@@ -25,17 +26,39 @@ import License from './pages/License'
 import NotFound from './pages/NotFound'
 
 function App() {
-  const { fetchUser, token } = useAuthStore()
-  const { fetchSettings, initialized } = usePlatformStore()
+  const { fetchUser, token, user } = useAuthStore()
+  const { fetchSettings, initialized, isMaintenanceMode, settings } = usePlatformStore()
 
   useEffect(() => {
     if (token) {
       fetchUser()
     }
+  }, [token])
+
+  useEffect(() => {
     if (!initialized) {
       fetchSettings()
     }
-  }, [])
+  }, [initialized])
+
+  // Debug logs
+  useEffect(() => {
+    if (initialized) {
+      console.log('Platform initialized:', initialized)
+      console.log('Settings:', settings)
+      console.log('Maintenance mode:', isMaintenanceMode())
+      console.log('User:', user)
+    }
+  }, [initialized, settings, user])
+
+  // Show maintenance mode for non-admin users
+  const inMaintenanceMode = initialized && isMaintenanceMode()
+  const isAdmin = user && ['admin', 'superadmin'].includes(user.role)
+  
+  if (inMaintenanceMode && !isAdmin) {
+    console.log('Showing maintenance mode page')
+    return <MaintenanceMode />
+  }
 
   return (
     <Routes>

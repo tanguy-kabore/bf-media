@@ -60,6 +60,16 @@ export default function Watch() {
 
   useEffect(() => {
     if (id) {
+      // Reset states for new video
+      setShowPreRollAd(true)
+      setAdCompleted(false)
+      setShowMidRollAd(false)
+      setMidRollShown(false)
+      setSavedProgress(null)
+      setShowResumePrompt(false)
+      hasRestoredProgress.current = false
+      lastProgressUpdateRef.current = 0
+      
       fetchVideo()
       fetchRelatedVideos()
       fetchComments()
@@ -128,6 +138,7 @@ export default function Watch() {
     if (savedProgress && videoRef.current) {
       videoRef.current.currentTime = savedProgress.time
       setShowResumePrompt(false)
+      videoRef.current.play().catch(() => {})
     }
   }
 
@@ -135,6 +146,10 @@ export default function Watch() {
   const handleStartFromBeginning = () => {
     setShowResumePrompt(false)
     setSavedProgress(null)
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0
+      videoRef.current.play().catch(() => {})
+    }
   }
 
   const fetchVideo = async () => {
@@ -624,8 +639,9 @@ export default function Watch() {
   const handleAdComplete = () => {
     setShowPreRollAd(false)
     setAdCompleted(true)
-    // Start playing the actual video
-    if (videoRef.current) {
+    // Only auto-play if no resume prompt to show
+    // If there's saved progress, let the user choose via the resume prompt
+    if (videoRef.current && !savedProgress) {
       videoRef.current.play().catch(() => {})
     }
   }

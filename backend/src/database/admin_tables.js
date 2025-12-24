@@ -56,6 +56,20 @@ async function createAdminTables() {
     `);
     console.log('✓ Ads table created');
 
+    // Add skip_duration and company_name columns if they don't exist
+    try {
+      await connection.execute(`ALTER TABLE ads ADD COLUMN skip_duration INT DEFAULT 5`);
+      console.log('✓ skip_duration column added to ads');
+    } catch (e) {
+      if (!e.message.includes('Duplicate column')) console.log('skip_duration column may already exist');
+    }
+    try {
+      await connection.execute(`ALTER TABLE ads ADD COLUMN company_name VARCHAR(255)`);
+      console.log('✓ company_name column added to ads');
+    } catch (e) {
+      if (!e.message.includes('Duplicate column')) console.log('company_name column may already exist');
+    }
+
     // Create ad impressions table
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS ad_impressions (

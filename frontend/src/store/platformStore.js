@@ -20,8 +20,9 @@ const usePlatformStore = create(
       fetchSettings: async () => {
         try {
           const response = await api.get('/platform/settings')
+          console.log('Fetched platform settings from API:', response.data)
           set({ 
-            settings: { ...get().settings, ...response.data },
+            settings: response.data, // Replace all settings instead of merging
             initialized: true 
           })
         } catch (error) {

@@ -53,6 +53,18 @@ const loginValidation = [
 
 // Register
 router.post('/register', registerValidation, asyncHandler(async (req, res) => {
+  // Check if registrations are enabled
+  const registrationSetting = await query(
+    `SELECT setting_value FROM settings WHERE setting_key = 'registrations_enabled'`
+  );
+  const registrationsEnabled = registrationSetting.length > 0 
+    ? registrationSetting[0].setting_value === 'true' 
+    : true; // Default to enabled
+
+  if (!registrationsEnabled) {
+    return res.status(403).json({ error: 'Les inscriptions sont actuellement désactivées' });
+  }
+
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -74,11 +86,19 @@ router.post('/register', registerValidation, asyncHandler(async (req, res) => {
   const passwordHash = await bcrypt.hash(password, 12);
   const userId = uuidv4();
 
+  // Get default storage limit from settings
+  const settingsResult = await query(
+    `SELECT setting_value FROM settings WHERE setting_key = 'default_storage_limit'`
+  );
+  const defaultStorageLimit = settingsResult.length > 0 
+    ? parseInt(settingsResult[0].setting_value) 
+    : 5368709120; // 5GB fallback
+
   // Create user
   await query(
-    `INSERT INTO users (id, email, username, password_hash, display_name, role) 
-     VALUES (?, ?, ?, ?, ?, 'user')`,
-    [userId, email, username, passwordHash, displayName || username]
+    `INSERT INTO users (id, email, username, password_hash, display_name, role, storage_limit) 
+     VALUES (?, ?, ?, ?, ?, 'user', ?)`,
+    [userId, email, username, passwordHash, displayName || username, defaultStorageLimit]
   );
 
   // Create default channel for user

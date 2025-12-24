@@ -23,10 +23,15 @@ const subscriptionRoutes = require('./routes/subscriptions');
 const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
 const streamRoutes = require('./routes/stream');
+const platformRoutes = require('./routes/platform');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
 const { authenticateSocket } = require('./middleware/auth');
+const { checkMaintenanceMode } = require('./middleware/maintenanceMode');
+
+// Import database setup
+const { createSettingsTable } = require('./database/settings_table');
 
 const app = express();
 const httpServer = createServer(app);
@@ -93,9 +98,16 @@ if (process.env.NODE_ENV !== 'production') {
 // Static files for uploads
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
+// Public platform settings (before maintenance check)
+app.use('/api/platform', platformRoutes);
+
+// Maintenance mode check (before other API routes)
+app.use(checkMaintenanceMode);
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/upload', userRoutes); // Avatar upload route
 app.use('/api/videos', videoRoutes);
 app.use('/api/channels', channelRoutes);
 app.use('/api/comments', commentRoutes);
@@ -188,7 +200,7 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
   console.log(`
   ╔═══════════════════════════════════════════════════╗
   ║                                                   ║
@@ -198,6 +210,13 @@ httpServer.listen(PORT, () => {
   ║                                                   ║
   ╚═══════════════════════════════════════════════════╝
   `);
+  
+  // Initialize settings table
+  try {
+    await createSettingsTable();
+  } catch (error) {
+    console.error('Failed to initialize settings table:', error);
+  }
 });
 
 module.exports = { app, io };

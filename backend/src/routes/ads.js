@@ -58,7 +58,7 @@ router.get('/', optionalAuth, asyncHandler(async (req, res) => {
   
   // Get all potentially active ads for this position
   const allAds = await query(`
-    SELECT id, title, description, ad_type, media_url, target_url, position,
+    SELECT id, title, description, ad_type, media_url, target_url, position, skip_duration,
            target_countries, target_devices, target_categories, budget, revenue
     FROM ads 
     WHERE status = 'active' 
@@ -110,7 +110,8 @@ router.get('/', optionalAuth, asyncHandler(async (req, res) => {
     ad_type: ad.ad_type,
     media_url: ad.media_url,
     target_url: ad.target_url,
-    position: ad.position
+    position: ad.position,
+    skip_duration: ad.skip_duration || 5
   }));
   
   res.json(result);

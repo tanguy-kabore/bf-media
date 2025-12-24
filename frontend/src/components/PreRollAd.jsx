@@ -119,11 +119,18 @@ export default function PreRollAd({ onComplete, onSkip, category = '', position 
   useEffect(() => {
     if (!ad || hasCompleted.current) return
     
+    // Use skip_duration from ad data, default to 5 seconds
+    const skipDuration = ad.skip_duration || 5
+    
+    // Check if this is an image ad
+    const mediaUrl = ad.media_url || ''
+    const isImageAd = !mediaUrl.match(/\.(mp4|webm)$/i)
+    
     // Reset countdown when ad loads
-    setCountdown(5)
+    setCountdown(skipDuration)
     setCanSkip(false)
 
-    let count = 5
+    let count = skipDuration
     countdownRef.current = setInterval(() => {
       count -= 1
       setCountdown(count)
@@ -132,6 +139,15 @@ export default function PreRollAd({ onComplete, onSkip, category = '', position 
         if (countdownRef.current) {
           clearInterval(countdownRef.current)
           countdownRef.current = null
+        }
+        // For image ads, auto-complete after countdown ends
+        if (isImageAd && !hasCompleted.current) {
+          // Give a short delay then auto-skip
+          imageTimerRef.current = setTimeout(() => {
+            if (!hasCompleted.current) {
+              handleComplete()
+            }
+          }, 500)
         }
       }
     }, 1000)
@@ -142,7 +158,7 @@ export default function PreRollAd({ onComplete, onSkip, category = '', position 
         countdownRef.current = null
       }
     }
-  }, [ad])
+  }, [ad, handleComplete])
 
   // Track video progress
   const handleTimeUpdate = () => {

@@ -145,6 +145,24 @@ router.post('/upload', authenticate, uploadVideo.single('video'), asyncHandler(a
     return res.status(400).json({ error: 'Fichier vidéo requis' });
   }
 
+  // Check max video size from settings
+  const maxSizeSetting = await query(
+    `SELECT setting_value FROM settings WHERE setting_key = 'max_video_size'`
+  );
+  const maxVideoSize = maxSizeSetting.length > 0 
+    ? parseInt(maxSizeSetting[0].setting_value) 
+    : 2147483648; // 2GB fallback
+
+  if (req.file.size > maxVideoSize) {
+    // Delete the uploaded file
+    const fs = require('fs');
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    const maxSizeGB = (maxVideoSize / (1024 * 1024 * 1024)).toFixed(2);
+    return res.status(413).json({ error: `La taille du fichier dépasse la limite autorisée de ${maxSizeGB} GB` });
+  }
+
   const { title, description, categoryId, visibility = 'public', tags, channelId: requestedChannelId } = req.body;
 
   // Get user's channels and verify ownership

@@ -305,7 +305,14 @@ const AdminUsers = () => {
     setLoading(true)
     setError(null)
     try {
-      const params = new URLSearchParams({ page: pagination.page, limit: 20, ...(search && { search }), ...(roleFilter && { role: roleFilter }), ...(statusFilter && { status: statusFilter }) })
+      const params = new URLSearchParams({ 
+        page: pagination.page, 
+        limit: 20, 
+        _t: Date.now(), // Cache buster
+        ...(search && { search }), 
+        ...(roleFilter && { role: roleFilter }), 
+        ...(statusFilter && { status: statusFilter }) 
+      })
       const res = await api.get(`/admin/users?${params}`)
       setUsers(res.data.users || [])
       setPagination(res.data.pagination || { page: 1, total: 0, pages: 1 })
@@ -328,7 +335,14 @@ const AdminUsers = () => {
       alert('Impossible de désactiver le dernier administrateur actif')
       return
     }
-    try { await api.patch(`/admin/users/${userId}`, updates); fetchUsers(); setShowModal(false) } catch (e) { console.error(e) }
+    try { 
+      await api.patch(`/admin/users/${userId}`, updates)
+      await fetchUsers()
+      setShowModal(false)
+    } catch (e) { 
+      console.error(e)
+      throw e
+    }
   }
   
   const deleteUser = async (userId) => {
@@ -343,27 +357,29 @@ const AdminUsers = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Gestion des utilisateurs</h1>
-        <button onClick={fetchUsers} disabled={loading} className="px-4 py-2 bg-dark-700 hover:bg-dark-600 border border-dark-600 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">Gestion des utilisateurs</h1>
+        <button onClick={fetchUsers} disabled={loading} className="px-4 py-2 bg-dark-700 hover:bg-dark-600 border border-dark-600 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
           <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span className="hidden sm:inline">Actualiser</span>
+          <span>Actualiser</span>
         </button>
       </div>
-      <div className="flex flex-wrap gap-4">
-        <form onSubmit={handleSearch} className="flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <form onSubmit={handleSearch} className="flex-1">
           <div className="relative">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
             <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..." className="w-full pl-10 pr-4 py-2 bg-dark-800 border border-dark-700 rounded-lg" />
           </div>
         </form>
-        <select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPagination(p => ({ ...p, page: 1 })) }} className="px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg">
-          <option value="">Tous les rôles</option><option value="user">Utilisateur</option><option value="creator">Créateur</option><option value="moderator">Modérateur</option><option value="admin">Admin</option>
-        </select>
-        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPagination(p => ({ ...p, page: 1 })) }} className="px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg">
-          <option value="">Tous</option><option value="active">Actifs</option><option value="inactive">Inactifs</option>
-        </select>
+        <div className="flex gap-2">
+          <select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPagination(p => ({ ...p, page: 1 })) }} className="flex-1 sm:flex-none px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-sm">
+            <option value="">Tous les rôles</option><option value="user">Utilisateur</option><option value="creator">Créateur</option><option value="moderator">Modérateur</option><option value="admin">Admin</option>
+          </select>
+          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPagination(p => ({ ...p, page: 1 })) }} className="flex-1 sm:flex-none px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-sm">
+            <option value="">Tous</option><option value="active">Actifs</option><option value="inactive">Inactifs</option>
+          </select>
+        </div>
       </div>
 
       {/* Error Display */}
@@ -384,7 +400,7 @@ const AdminUsers = () => {
             users.length === 0 ? <tr><td colSpan={5} className="py-8 text-center text-dark-400">Aucun utilisateur</td></tr> :
             users.map(u => (
               <tr key={u.id} className="hover:bg-dark-700/30">
-                <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-dark-600 flex items-center justify-center">{u.avatar_url ? <img src={u.avatar_url} className="w-full h-full rounded-full object-cover" /> : u.username?.charAt(0).toUpperCase()}</div><div><p className="font-medium">{u.username}</p><p className="text-sm text-dark-400">{u.email}</p></div></div></td>
+                <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-dark-600 flex items-center justify-center">{u.avatar_url ? <img src={u.avatar_url} className="w-full h-full rounded-full object-cover" alt="" /> : u.username?.charAt(0).toUpperCase()}</div><div><p className="font-medium">{u.display_name || u.username}</p><p className="text-sm text-dark-400">{u.email}</p></div></div></td>
                 <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs ${u.role === 'superadmin' ? 'bg-orange-500/20 text-orange-400' : u.role === 'admin' ? 'bg-red-500/20 text-red-400' : u.role === 'moderator' ? 'bg-purple-500/20 text-purple-400' : u.role === 'creator' ? 'bg-blue-500/20 text-blue-400' : 'bg-dark-600'}`}>{u.role}</span></td>
                 <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs ${u.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{u.is_active ? 'Actif' : 'Inactif'}</span></td>
                 <td className="px-4 py-3 text-sm text-dark-400">{formatBytes(u.storage_used || 0)} / {formatBytes(u.storage_limit || 5368709120)}</td>
@@ -418,37 +434,39 @@ const AdminUsers = () => {
         error ? <div className="text-center py-8 text-red-400">Erreur de chargement</div> :
         users.length === 0 ? <div className="text-center py-8 text-dark-400">Aucun utilisateur</div> :
         users.map(u => (
-          <div key={u.id} className="bg-dark-800 rounded-xl border border-dark-700 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-dark-600 flex items-center justify-center overflow-hidden">
-                  {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" /> : u.username?.charAt(0).toUpperCase()}
+          <div key={u.id} className="bg-dark-800 rounded-xl border border-dark-700 p-3">
+            <div className="flex items-start justify-between mb-3 gap-2">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="w-10 h-10 rounded-full bg-dark-600 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" alt="" /> : <span className="text-sm font-medium">{u.username?.charAt(0).toUpperCase()}</span>}
                 </div>
-                <div>
-                  <p className="font-medium">{u.username}</p>
-                  <p className="text-xs text-dark-400 truncate max-w-[150px]">{u.email}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm truncate">{u.display_name || u.username}</p>
+                  <p className="text-xs text-dark-400 truncate">{u.email}</p>
                 </div>
               </div>
-              <span className={`px-2 py-1 rounded text-xs ${u.role === 'superadmin' ? 'bg-orange-500/20 text-orange-400' : u.role === 'admin' ? 'bg-red-500/20 text-red-400' : u.role === 'moderator' ? 'bg-purple-500/20 text-purple-400' : u.role === 'creator' ? 'bg-blue-500/20 text-blue-400' : 'bg-dark-600'}`}>{u.role}</span>
+              <span className={`px-2 py-1 rounded text-xs flex-shrink-0 whitespace-nowrap ${u.role === 'superadmin' ? 'bg-orange-500/20 text-orange-400' : u.role === 'admin' ? 'bg-red-500/20 text-red-400' : u.role === 'moderator' ? 'bg-purple-500/20 text-purple-400' : u.role === 'creator' ? 'bg-blue-500/20 text-blue-400' : 'bg-dark-600'}`}>
+                {u.role === 'superadmin' ? 'Super Admin' : u.role === 'admin' ? 'Admin' : u.role === 'moderator' ? 'Modo' : u.role === 'creator' ? 'Créateur' : 'User'}
+              </span>
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <span className={`px-2 py-0.5 rounded text-xs ${u.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{u.is_active ? 'Actif' : 'Inactif'}</span>
-                <span className="text-dark-400 text-xs">{formatBytes(u.storage_used || 0)}</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`px-2 py-0.5 rounded text-xs whitespace-nowrap ${u.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{u.is_active ? 'Actif' : 'Inactif'}</span>
+                <span className="text-dark-400 text-xs whitespace-nowrap">{formatBytes(u.storage_used || 0)}</span>
               </div>
-              <div className="flex gap-1">
-                <button onClick={() => { setSelectedUser(u); setShowModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg"><FiEdit className="w-4 h-4" /></button>
+              <div className="flex gap-1 flex-shrink-0">
+                <button onClick={() => { setSelectedUser(u); setShowModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg" title="Modifier"><FiEdit className="w-4 h-4" /></button>
                 {u.role !== 'superadmin' && (
                   <>
-                    <button onClick={() => updateUser(u.id, { isActive: !u.is_active })} className={`p-2 hover:bg-dark-600 rounded-lg ${u.is_active ? 'text-green-400' : 'text-red-400'}`}>{u.is_active ? <FiToggleRight className="w-4 h-4" /> : <FiToggleLeft className="w-4 h-4" />}</button>
-                    <button onClick={() => deleteUser(u.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"><FiTrash2 className="w-4 h-4" /></button>
+                    <button onClick={() => updateUser(u.id, { isActive: !u.is_active })} className={`p-2 hover:bg-dark-600 rounded-lg ${u.is_active ? 'text-green-400' : 'text-red-400'}`} title={u.is_active ? 'Désactiver' : 'Activer'}>{u.is_active ? <FiToggleRight className="w-5 h-5" /> : <FiToggleLeft className="w-5 h-5" />}</button>
+                    <button onClick={() => deleteUser(u.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400" title="Supprimer"><FiTrash2 className="w-4 h-4" /></button>
                   </>
                 )}
               </div>
             </div>
           </div>
         ))}
-        {pagination.pages > 1 && <div className="flex justify-between items-center pt-2"><span className="text-sm text-dark-400">Page {pagination.page}/{pagination.pages}</span><div className="flex gap-2"><button onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))} disabled={pagination.page === 1} className="px-3 py-1 bg-dark-700 rounded disabled:opacity-50">Préc</button><button onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))} disabled={pagination.page === pagination.pages} className="px-3 py-1 bg-dark-700 rounded disabled:opacity-50">Suiv</button></div></div>}
+        {pagination.pages > 1 && <div className="flex justify-between items-center pt-2 gap-2"><span className="text-xs sm:text-sm text-dark-400">Page {pagination.page}/{pagination.pages}</span><div className="flex gap-2"><button onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))} disabled={pagination.page === 1} className="px-3 py-1.5 text-sm bg-dark-700 rounded disabled:opacity-50">Préc</button><button onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))} disabled={pagination.page === pagination.pages} className="px-3 py-1.5 text-sm bg-dark-700 rounded disabled:opacity-50">Suiv</button></div></div>}
       </div>
       {showModal && selectedUser && <UserEditModal user={selectedUser} onClose={() => setShowModal(false)} onSave={updateUser} />}
     </div>
@@ -456,16 +474,240 @@ const AdminUsers = () => {
 }
 
 const UserEditModal = ({ user, onClose, onSave }) => {
-  const [form, setForm] = useState({ role: user.role, isActive: user.is_active, isVerified: user.is_verified, storageLimit: user.storage_limit || 5368709120 })
+  const { user: currentUser } = useAuthStore()
+  const isSuperAdmin = currentUser?.role === 'superadmin'
+  const canEditAdmins = isSuperAdmin
+  const targetIsAdmin = ['admin', 'superadmin'].includes(user.role)
+  
+  const [form, setForm] = useState({ 
+    username: user.username || '',
+    email: user.email || '',
+    displayName: user.display_name || '',
+    role: user.role || 'user', 
+    isActive: user.is_active !== undefined ? user.is_active : true, 
+    storageLimit: user.storage_limit || 5368709120,
+    avatarUrl: user.avatar_url || ''
+  })
+  
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState(user.avatar_url || '')
+  const [uploading, setUploading] = useState(false)
+  
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('L\'image ne doit pas dépasser 5 MB')
+        return
+      }
+      setAvatarFile(file)
+      const reader = new FileReader()
+      reader.onloadend = () => setAvatarPreview(reader.result)
+      reader.readAsDataURL(file)
+    }
+  }
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setUploading(true)
+    
+    try {
+      let avatarUrl = form.avatarUrl
+      
+      // Upload avatar if changed
+      if (avatarFile) {
+        const formData = new FormData()
+        formData.append('avatar', avatarFile)
+        const uploadRes = await api.post('/upload/avatar', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        avatarUrl = uploadRes.data.avatarUrl
+      }
+      
+      await onSave(user.id, { ...form, avatarUrl })
+      // Modal will be closed by updateUser after successful update
+    } catch (error) {
+      console.error('Error updating user:', error)
+      alert(error.response?.data?.error || 'Erreur lors de la mise à jour')
+      setUploading(false)
+    }
+  }
+  
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-dark-900 rounded-xl w-full max-w-md border border-dark-700">
-        <div className="flex justify-between p-4 border-b border-dark-700"><h3 className="font-semibold">Modifier</h3><button onClick={onClose}><FiX className="w-5 h-5" /></button></div>
-        <form onSubmit={e => { e.preventDefault(); onSave(user.id, form) }} className="p-4 space-y-4">
-          <div><label className="block text-sm mb-1">Rôle</label><select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg"><option value="user">Utilisateur</option><option value="creator">Créateur</option><option value="moderator">Modérateur</option><option value="admin">Admin</option></select></div>
-          <div><label className="block text-sm mb-1">Stockage</label><select value={form.storageLimit} onChange={e => setForm({ ...form, storageLimit: parseInt(e.target.value) })} className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg"><option value={1073741824}>1 GB</option><option value={5368709120}>5 GB</option><option value={10737418240}>10 GB</option><option value={53687091200}>50 GB</option></select></div>
-          <div className="flex gap-4"><label className="flex items-center gap-2"><input type="checkbox" checked={form.isActive} onChange={e => setForm({ ...form, isActive: e.target.checked })} />Actif</label><label className="flex items-center gap-2"><input type="checkbox" checked={form.isVerified} onChange={e => setForm({ ...form, isVerified: e.target.checked })} />Vérifié</label></div>
-          <div className="flex gap-3"><button type="button" onClick={onClose} className="flex-1 py-2 bg-dark-700 rounded-lg">Annuler</button><button type="submit" className="flex-1 py-2 bg-primary-500 rounded-lg">Enregistrer</button></div>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+      <div className="bg-dark-900 rounded-xl w-full max-w-2xl border border-dark-700 max-h-[95vh] overflow-y-auto shadow-2xl">
+        <div className="flex justify-between items-center p-4 sm:p-5 border-b border-dark-700 sticky top-0 bg-dark-900 z-10">
+          <h3 className="text-lg sm:text-xl font-semibold">Modifier l'utilisateur</h3>
+          <button onClick={onClose} className="hover:bg-dark-700 p-1.5 rounded-lg transition-colors"><FiX className="w-5 h-5" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5">
+          {/* Avatar et Informations de base */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium text-primary-400 uppercase tracking-wide">Profil</h4>
+            
+            {/* Avatar */}
+            <div className="flex flex-col sm:flex-row items-center gap-4 p-4 bg-dark-800/50 rounded-xl border border-dark-700">
+              <div className="relative group">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-dark-700 flex items-center justify-center border-2 border-dark-600">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl sm:text-3xl font-bold text-dark-400">{user.username?.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+                <label className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <FiUpload className="w-6 h-6 text-white" />
+                  <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                </label>
+              </div>
+              <div className="flex-1 text-center sm:text-left">
+                <p className="text-sm font-medium mb-1">Photo de profil</p>
+                <p className="text-xs text-dark-400 mb-2">JPG, PNG ou GIF. Max 5 MB</p>
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                  <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg text-sm cursor-pointer transition-colors">
+                    <FiUpload className="w-4 h-4" />
+                    <span>Choisir</span>
+                    <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                  </label>
+                  {(avatarPreview || form.avatarUrl) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAvatarFile(null)
+                        setAvatarPreview('')
+                        setForm({ ...form, avatarUrl: '' })
+                      }}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition-colors"
+                    >
+                      <FiTrash2 className="w-4 h-4" />
+                      <span>Supprimer</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Form fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Nom d'utilisateur *</label>
+                <input 
+                  type="text" 
+                  value={form.username} 
+                  onChange={e => setForm({ ...form, username: e.target.value })} 
+                  className="w-full px-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none transition-colors"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Email *</label>
+                <input 
+                  type="email" 
+                  value={form.email} 
+                  onChange={e => setForm({ ...form, email: e.target.value })} 
+                  className="w-full px-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none transition-colors"
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Nom affiché</label>
+              <input 
+                type="text" 
+                value={form.displayName} 
+                onChange={e => setForm({ ...form, displayName: e.target.value })} 
+                className="w-full px-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none transition-colors"
+                placeholder="Optionnel"
+              />
+            </div>
+          </div>
+
+          {/* Rôle et permissions */}
+          <div className="space-y-4 pt-5 border-t border-dark-700">
+            <h4 className="text-sm font-medium text-primary-400 uppercase tracking-wide">Permissions</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Rôle</label>
+                <select 
+                  value={form.role} 
+                  onChange={e => setForm({ ...form, role: e.target.value })} 
+                  className="w-full px-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={targetIsAdmin && !canEditAdmins}
+                >
+                  <option value="user">👤 Utilisateur</option>
+                  <option value="creator">🎬 Créateur</option>
+                  <option value="moderator">🛡️ Modérateur</option>
+                  {(isSuperAdmin || user.role === 'admin') && <option value="admin">⚡ Admin</option>}
+                  {(isSuperAdmin || user.role === 'superadmin') && <option value="superadmin">👑 Super Admin</option>}
+                </select>
+                {targetIsAdmin && !canEditAdmins && (
+                  <p className="text-xs text-yellow-500 mt-1.5 flex items-center gap-1">
+                    <span>⚠️</span>
+                    <span>Seul un superadmin peut modifier le rôle d'un admin</span>
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Limite de stockage</label>
+                <select 
+                  value={form.storageLimit} 
+                  onChange={e => setForm({ ...form, storageLimit: parseInt(e.target.value) })} 
+                  className="w-full px-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none transition-colors"
+                >
+                  <option value={1073741824}>💾 1 GB</option>
+                  <option value={5368709120}>💾 5 GB</option>
+                  <option value={10737418240}>💾 10 GB</option>
+                  <option value={21474836480}>💾 20 GB</option>
+                  <option value={53687091200}>💾 50 GB</option>
+                  <option value={107374182400}>💾 100 GB</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Statuts */}
+          <div className="space-y-4 pt-5 border-t border-dark-700">
+            <h4 className="text-sm font-medium text-primary-400 uppercase tracking-wide">Statut du compte</h4>
+            <div className="bg-dark-800/50 rounded-xl p-4 border border-dark-700">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  checked={form.isActive} 
+                  onChange={e => setForm({ ...form, isActive: e.target.checked })} 
+                  className="w-5 h-5 mt-0.5 rounded border-dark-600 text-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-0 focus:ring-offset-dark-900"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-medium group-hover:text-primary-400 transition-colors">Compte actif</span>
+                  <p className="text-xs text-dark-400 mt-1">L'utilisateur peut se connecter et utiliser la plateforme</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-dark-700">
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className="flex-1 py-3 px-4 bg-dark-700 hover:bg-dark-600 rounded-lg transition-colors font-medium"
+              disabled={uploading}
+            >
+              Annuler
+            </button>
+            <button 
+              type="submit" 
+              className="flex-1 py-3 px-4 bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              disabled={uploading}
+            >
+              {uploading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  <span>Enregistrement...</span>
+                </>
+              ) : (
+                'Enregistrer'
+              )}
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -901,6 +1143,7 @@ const AdminVerifications = () => {
   const [statusFilter, setStatusFilter] = useState('')
   const [selectedRequest, setSelectedRequest] = useState(null)
   const [rejectionReason, setRejectionReason] = useState('')
+  const [imagePreview, setImagePreview] = useState(null)
 
   useEffect(() => { fetchRequests() }, [statusFilter])
 
@@ -923,18 +1166,48 @@ const AdminVerifications = () => {
   }
 
   const revokeBadge = async (userId) => {
-    if (!confirm('Retirer le badge de vérification ?')) return
+    if (!confirm('Retirer le badge de vérification ? La demande repassera en attente et pourra être ré-approuvée.')) return
     try {
       await api.delete(`/admin/verifications/badge/${userId}`)
       fetchRequests()
     } catch (e) { console.error(e) }
   }
 
+  const deleteRequest = async (id) => {
+    if (!confirm('Supprimer définitivement cette demande ? Si elle était approuvée, le badge sera aussi retiré.')) return
+    try {
+      await api.delete(`/admin/verifications/${id}`)
+      fetchRequests()
+      setSelectedRequest(null)
+    } catch (e) { console.error(e) }
+  }
+
+  const downloadImage = async (url, filename) => {
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = filename || 'document.jpg'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(link.href)
+    } catch (e) {
+      window.open(url, '_blank')
+    }
+  }
+
+  const formatDate = (date) => {
+    if (!date) return '-'
+    return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Demandes de vérification</h1>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold">Demandes de vérification</h1>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-sm">
           <option value="">Toutes</option>
           <option value="pending">En attente</option>
           <option value="approved">Approuvées</option>
@@ -943,33 +1216,37 @@ const AdminVerifications = () => {
       </div>
 
       {/* Desktop Table */}
-      <div className="hidden md:block bg-dark-800 rounded-xl border border-dark-700 overflow-hidden overflow-x-auto">
-        <table className="w-full min-w-[700px]">
+      <div className="hidden lg:block bg-dark-800 rounded-xl border border-dark-700 overflow-hidden overflow-x-auto">
+        <table className="w-full min-w-[800px]">
           <thead className="bg-dark-700/50">
             <tr>
               <th className="px-4 py-3 text-left text-sm">Utilisateur</th>
               <th className="px-4 py-3 text-left text-sm">Document</th>
               <th className="px-4 py-3 text-left text-sm">Nom complet</th>
+              <th className="px-4 py-3 text-left text-sm">Date naissance</th>
               <th className="px-4 py-3 text-left text-sm">Statut</th>
-              <th className="px-4 py-3 text-left text-sm">Date</th>
+              <th className="px-4 py-3 text-left text-sm">Date demande</th>
               <th className="px-4 py-3 text-right text-sm">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-dark-700">
             {loading ? (
-              <tr><td colSpan={6} className="py-8 text-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500 mx-auto"></div></td></tr>
+              <tr><td colSpan={7} className="py-8 text-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500 mx-auto"></div></td></tr>
             ) : requests.length === 0 ? (
-              <tr><td colSpan={6} className="py-8 text-center text-dark-400">Aucune demande</td></tr>
+              <tr><td colSpan={7} className="py-8 text-center text-dark-400">Aucune demande</td></tr>
             ) : requests.map(r => (
               <tr key={r.id} className="hover:bg-dark-700/30">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-dark-600 overflow-hidden">
-                      {r.avatar_url ? <img src={r.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center">{r.username?.charAt(0).toUpperCase()}</div>}
-                    </div>
-                    <div>
-                      <p className="font-medium">{r.display_name || r.username}</p>
-                      <p className="text-sm text-dark-400">{r.email}</p>
+                    <button 
+                      onClick={() => r.avatar_url && setImagePreview({ url: r.avatar_url, title: 'Photo de profil' })}
+                      className={`w-10 h-10 rounded-full bg-dark-600 overflow-hidden flex-shrink-0 ${r.avatar_url ? 'cursor-pointer hover:ring-2 hover:ring-primary-500' : ''}`}
+                    >
+                      {r.avatar_url ? <img src={r.avatar_url} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center">{r.username?.charAt(0).toUpperCase()}</div>}
+                    </button>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{r.display_name || r.username}</p>
+                      <p className="text-sm text-dark-400 truncate">{r.email}</p>
                     </div>
                   </div>
                 </td>
@@ -977,6 +1254,7 @@ const AdminVerifications = () => {
                   <span className="px-2 py-1 rounded text-xs bg-dark-600">{r.document_type === 'national_id' ? 'CNI' : 'Passeport'}</span>
                 </td>
                 <td className="px-4 py-3 text-sm">{r.full_name}</td>
+                <td className="px-4 py-3 text-sm text-dark-400">{formatDate(r.date_of_birth)}</td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-1 rounded text-xs ${
                     r.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
@@ -986,17 +1264,20 @@ const AdminVerifications = () => {
                     {r.status === 'pending' ? 'En attente' : r.status === 'approved' ? 'Approuvée' : 'Rejetée'}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-dark-400">{new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
+                <td className="px-4 py-3 text-sm text-dark-400">{formatDate(r.created_at)}</td>
                 <td className="px-4 py-3">
-                  <div className="flex justify-end gap-2">
+                  <div className="flex justify-end gap-1">
                     <button onClick={() => setSelectedRequest(r)} className="p-2 hover:bg-dark-600 rounded-lg" title="Voir détails">
                       <FiEye className="w-4 h-4" />
                     </button>
                     {r.status === 'approved' && (
-                      <button onClick={() => revokeBadge(r.user_id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400" title="Retirer le badge">
+                      <button onClick={() => revokeBadge(r.user_id)} className="p-2 hover:bg-yellow-500/20 rounded-lg text-yellow-400" title="Retirer le badge">
                         <FiX className="w-4 h-4" />
                       </button>
                     )}
+                    <button onClick={() => deleteRequest(r.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400" title="Supprimer">
+                      <FiTrash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -1005,83 +1286,208 @@ const AdminVerifications = () => {
         </table>
       </div>
 
-      {/* Mobile Cards */}
-      <div className="md:hidden space-y-3">
+      {/* Tablet Cards */}
+      <div className="hidden md:block lg:hidden space-y-3">
         {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div></div> :
         requests.length === 0 ? <div className="text-center py-8 text-dark-400">Aucune demande</div> :
         requests.map(r => (
           <div key={r.id} className="bg-dark-800 rounded-xl border border-dark-700 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-dark-600 overflow-hidden">
-                  {r.avatar_url ? <img src={r.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center">{r.username?.charAt(0).toUpperCase()}</div>}
-                </div>
-                <div>
-                  <p className="font-medium">{r.display_name || r.username}</p>
-                  <p className="text-xs text-dark-400 truncate max-w-[150px]">{r.email}</p>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <button 
+                  onClick={() => r.avatar_url && setImagePreview({ url: r.avatar_url, title: 'Photo de profil' })}
+                  className={`w-12 h-12 rounded-full bg-dark-600 overflow-hidden flex-shrink-0 ${r.avatar_url ? 'cursor-pointer hover:ring-2 hover:ring-primary-500' : ''}`}
+                >
+                  {r.avatar_url ? <img src={r.avatar_url} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center">{r.username?.charAt(0).toUpperCase()}</div>}
+                </button>
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{r.display_name || r.username}</p>
+                  <p className="text-sm text-dark-400 truncate">{r.email}</p>
+                  <p className="text-xs text-dark-500 mt-1">{r.full_name}</p>
                 </div>
               </div>
-              <span className={`px-2 py-1 rounded text-xs ${r.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : r.status === 'approved' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+              <span className={`px-2 py-1 rounded text-xs flex-shrink-0 ${r.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : r.status === 'approved' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                 {r.status === 'pending' ? 'En attente' : r.status === 'approved' ? 'Approuvée' : 'Rejetée'}
               </span>
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-dark-700">
+              <div className="flex items-center gap-3 text-sm">
                 <span className="px-2 py-0.5 rounded text-xs bg-dark-600">{r.document_type === 'national_id' ? 'CNI' : 'Passeport'}</span>
-                <span className="text-dark-400 text-xs">{r.full_name}</span>
+                <span className="text-dark-400">{formatDate(r.date_of_birth)}</span>
+                <span className="text-dark-500">{formatDate(r.created_at)}</span>
               </div>
               <div className="flex gap-1">
                 <button onClick={() => setSelectedRequest(r)} className="p-2 hover:bg-dark-600 rounded-lg"><FiEye className="w-4 h-4" /></button>
-                {r.status === 'approved' && <button onClick={() => revokeBadge(r.user_id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"><FiX className="w-4 h-4" /></button>}
+                {r.status === 'approved' && <button onClick={() => revokeBadge(r.user_id)} className="p-2 hover:bg-yellow-500/20 rounded-lg text-yellow-400"><FiX className="w-4 h-4" /></button>}
+                <button onClick={() => deleteRequest(r.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"><FiTrash2 className="w-4 h-4" /></button>
               </div>
             </div>
           </div>
         ))}
       </div>
 
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div></div> :
+        requests.length === 0 ? <div className="text-center py-8 text-dark-400">Aucune demande</div> :
+        requests.map(r => (
+          <div key={r.id} className="bg-dark-800 rounded-xl border border-dark-700 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <button 
+                  onClick={() => r.avatar_url && setImagePreview({ url: r.avatar_url, title: 'Photo de profil' })}
+                  className={`w-9 h-9 rounded-full bg-dark-600 overflow-hidden flex-shrink-0 ${r.avatar_url ? 'cursor-pointer hover:ring-2 hover:ring-primary-500' : ''}`}
+                >
+                  {r.avatar_url ? <img src={r.avatar_url} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center text-sm">{r.username?.charAt(0).toUpperCase()}</div>}
+                </button>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{r.display_name || r.username}</p>
+                  <p className="text-xs text-dark-400 truncate">{r.email}</p>
+                </div>
+              </div>
+              <span className={`px-2 py-0.5 rounded text-xs flex-shrink-0 ${r.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : r.status === 'approved' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                {r.status === 'pending' ? 'Attente' : r.status === 'approved' ? 'OK' : 'Rejeté'}
+              </span>
+            </div>
+            <div className="text-xs text-dark-400 mb-2 pl-11">
+              <span className="font-medium text-dark-300">{r.full_name}</span> • {formatDate(r.date_of_birth)}
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-dark-700">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-xs bg-dark-600">{r.document_type === 'national_id' ? 'CNI' : 'Passeport'}</span>
+                <span className="text-xs text-dark-500">{formatDate(r.created_at)}</span>
+              </div>
+              <div className="flex gap-0.5">
+                <button onClick={() => setSelectedRequest(r)} className="p-1.5 hover:bg-dark-600 rounded-lg"><FiEye className="w-4 h-4" /></button>
+                {r.status === 'approved' && <button onClick={() => revokeBadge(r.user_id)} className="p-1.5 hover:bg-yellow-500/20 rounded-lg text-yellow-400"><FiX className="w-4 h-4" /></button>}
+                <button onClick={() => deleteRequest(r.id)} className="p-1.5 hover:bg-red-500/20 rounded-lg text-red-400"><FiTrash2 className="w-4 h-4" /></button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Image Preview Modal */}
+      {imagePreview && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4" onClick={() => setImagePreview(null)}>
+          <div className="relative max-w-4xl w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-white font-medium">{imagePreview.title}</h4>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => downloadImage(imagePreview.url, `${imagePreview.title}.jpg`)}
+                  className="p-2 bg-dark-800 hover:bg-dark-700 rounded-lg text-white"
+                  title="Télécharger"
+                >
+                  <FiDownload className="w-5 h-5" />
+                </button>
+                <button onClick={() => setImagePreview(null)} className="p-2 bg-dark-800 hover:bg-dark-700 rounded-lg text-white">
+                  <FiX className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <img src={imagePreview.url} alt={imagePreview.title} className="w-full max-h-[80vh] object-contain rounded-lg" />
+          </div>
+        </div>
+      )}
+
       {/* Detail Modal */}
       {selectedRequest && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-900 rounded-xl w-full max-w-2xl border border-dark-700 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-4 border-b border-dark-700">
-              <h3 className="font-semibold">Demande de vérification</h3>
-              <button onClick={() => { setSelectedRequest(null); setRejectionReason('') }}><FiX className="w-5 h-5" /></button>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-dark-900 rounded-xl w-full max-w-2xl border border-dark-700 max-h-[95vh] overflow-y-auto">
+            <div className="sticky top-0 bg-dark-900 flex justify-between items-center p-3 sm:p-4 border-b border-dark-700 z-10">
+              <h3 className="font-semibold text-sm sm:text-base">Demande de vérification</h3>
+              <button onClick={() => { setSelectedRequest(null); setRejectionReason('') }} className="p-1 hover:bg-dark-700 rounded">
+                <FiX className="w-5 h-5" />
+              </button>
             </div>
-            <div className="p-4 space-y-4">
+            <div className="p-3 sm:p-4 space-y-4">
               {/* User info */}
-              <div className="flex items-center gap-4 p-4 bg-dark-800 rounded-lg">
-                <div className="w-16 h-16 rounded-full bg-dark-600 overflow-hidden">
-                  {selectedRequest.avatar_url ? <img src={selectedRequest.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">{selectedRequest.username?.charAt(0).toUpperCase()}</div>}
-                </div>
-                <div>
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-3 sm:p-4 bg-dark-800 rounded-lg">
+                <button 
+                  onClick={() => selectedRequest.avatar_url && setImagePreview({ url: selectedRequest.avatar_url, title: 'Photo de profil' })}
+                  className={`w-20 h-20 sm:w-16 sm:h-16 rounded-full bg-dark-600 overflow-hidden flex-shrink-0 ${selectedRequest.avatar_url ? 'cursor-pointer hover:ring-2 hover:ring-primary-500' : ''}`}
+                >
+                  {selectedRequest.avatar_url ? <img src={selectedRequest.avatar_url} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center text-2xl">{selectedRequest.username?.charAt(0).toUpperCase()}</div>}
+                </button>
+                <div className="text-center sm:text-left flex-1 min-w-0">
                   <p className="font-semibold text-lg">{selectedRequest.display_name || selectedRequest.username}</p>
-                  <p className="text-dark-400">{selectedRequest.email}</p>
-                  <p className="text-sm text-dark-500">Nom sur document : {selectedRequest.full_name}</p>
+                  <p className="text-dark-400 text-sm break-all">{selectedRequest.email}</p>
+                  {selectedRequest.avatar_url && (
+                    <button 
+                      onClick={() => downloadImage(selectedRequest.avatar_url, `avatar_${selectedRequest.username}.jpg`)}
+                      className="mt-2 text-xs text-primary-400 hover:text-primary-300 flex items-center gap-1 mx-auto sm:mx-0"
+                    >
+                      <FiDownload className="w-3 h-3" /> Télécharger la photo
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Info details */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-dark-800 rounded-lg p-3">
+                  <p className="text-dark-400 text-xs mb-1">Nom complet</p>
+                  <p className="font-medium">{selectedRequest.full_name}</p>
+                </div>
+                <div className="bg-dark-800 rounded-lg p-3">
+                  <p className="text-dark-400 text-xs mb-1">Date de naissance</p>
+                  <p className="font-medium">{formatDate(selectedRequest.date_of_birth)}</p>
+                </div>
+                <div className="bg-dark-800 rounded-lg p-3">
+                  <p className="text-dark-400 text-xs mb-1">Type de document</p>
+                  <p className="font-medium">{selectedRequest.document_type === 'national_id' ? 'Carte Nationale d\'Identité' : 'Passeport'}</p>
+                </div>
+                <div className="bg-dark-800 rounded-lg p-3">
+                  <p className="text-dark-400 text-xs mb-1">Date de demande</p>
+                  <p className="font-medium">{formatDate(selectedRequest.created_at)}</p>
                 </div>
               </div>
 
               {/* Documents */}
               <div>
-                <h4 className="font-medium mb-3">Documents soumis</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h4 className="font-medium mb-3 text-sm sm:text-base">Documents soumis</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <p className="text-sm text-dark-400 mb-2">{selectedRequest.document_type === 'national_id' ? 'Recto CNI' : 'Page passeport'}</p>
-                    <a href={selectedRequest.document_front_url} target="_blank" rel="noopener noreferrer" className="block border border-dark-700 rounded-lg overflow-hidden hover:border-primary-500 transition-colors">
-                      <img src={selectedRequest.document_front_url} alt="Document front" className="w-full h-48 object-cover" />
-                    </a>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm text-dark-400">{selectedRequest.document_type === 'national_id' ? 'Recto CNI' : 'Page passeport'}</p>
+                      <button 
+                        onClick={() => downloadImage(selectedRequest.document_front_url, `document_recto_${selectedRequest.username}.jpg`)}
+                        className="text-xs text-primary-400 hover:text-primary-300 flex items-center gap-1"
+                      >
+                        <FiDownload className="w-3 h-3" /> Télécharger
+                      </button>
+                    </div>
+                    <button 
+                      onClick={() => setImagePreview({ url: selectedRequest.document_front_url, title: selectedRequest.document_type === 'national_id' ? 'Recto CNI' : 'Page passeport' })}
+                      className="block w-full border border-dark-700 rounded-lg overflow-hidden hover:border-primary-500 transition-colors cursor-pointer"
+                    >
+                      <img src={selectedRequest.document_front_url} alt="Document front" className="w-full h-32 sm:h-48 object-cover" />
+                    </button>
                   </div>
                   {selectedRequest.document_back_url && (
                     <div>
-                      <p className="text-sm text-dark-400 mb-2">Verso CNI</p>
-                      <a href={selectedRequest.document_back_url} target="_blank" rel="noopener noreferrer" className="block border border-dark-700 rounded-lg overflow-hidden hover:border-primary-500 transition-colors">
-                        <img src={selectedRequest.document_back_url} alt="Document back" className="w-full h-48 object-cover" />
-                      </a>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm text-dark-400">Verso CNI</p>
+                        <button 
+                          onClick={() => downloadImage(selectedRequest.document_back_url, `document_verso_${selectedRequest.username}.jpg`)}
+                          className="text-xs text-primary-400 hover:text-primary-300 flex items-center gap-1"
+                        >
+                          <FiDownload className="w-3 h-3" /> Télécharger
+                        </button>
+                      </div>
+                      <button 
+                        onClick={() => setImagePreview({ url: selectedRequest.document_back_url, title: 'Verso CNI' })}
+                        className="block w-full border border-dark-700 rounded-lg overflow-hidden hover:border-primary-500 transition-colors cursor-pointer"
+                      >
+                        <img src={selectedRequest.document_back_url} alt="Document back" className="w-full h-32 sm:h-48 object-cover" />
+                      </button>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Actions */}
+              {/* Actions for pending */}
               {selectedRequest.status === 'pending' && (
                 <div className="space-y-4 pt-4 border-t border-dark-700">
                   <div>
@@ -1089,31 +1495,50 @@ const AdminVerifications = () => {
                     <textarea 
                       value={rejectionReason}
                       onChange={e => setRejectionReason(e.target.value)}
-                      className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg"
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-sm"
                       placeholder="Ex: Document illisible, informations non concordantes..."
                       rows={2}
                     />
                   </div>
-                  <div className="flex gap-3">
-                    <button onClick={() => handleReview(selectedRequest.id, 'approved')} className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                    <button onClick={() => handleReview(selectedRequest.id, 'approved')} className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium text-sm">
                       Approuver
                     </button>
-                    <button onClick={() => handleReview(selectedRequest.id, 'rejected')} className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium">
+                    <button onClick={() => handleReview(selectedRequest.id, 'rejected')} className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium text-sm">
                       Rejeter
                     </button>
                   </div>
                 </div>
               )}
 
+              {/* Status display for non-pending */}
               {selectedRequest.status !== 'pending' && (
                 <div className={`p-4 rounded-lg ${selectedRequest.status === 'approved' ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'}`}>
                   <p className={`font-medium ${selectedRequest.status === 'approved' ? 'text-green-400' : 'text-red-400'}`}>
                     {selectedRequest.status === 'approved' ? 'Demande approuvée' : 'Demande rejetée'}
                   </p>
                   {selectedRequest.rejection_reason && <p className="text-sm text-dark-400 mt-1">Raison : {selectedRequest.rejection_reason}</p>}
-                  <p className="text-xs text-dark-500 mt-2">Le {new Date(selectedRequest.reviewed_at).toLocaleDateString('fr-FR')}</p>
+                  {selectedRequest.reviewed_at && <p className="text-xs text-dark-500 mt-2">Le {formatDate(selectedRequest.reviewed_at)}</p>}
                 </div>
               )}
+
+              {/* Bottom actions */}
+              <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-dark-700">
+                {selectedRequest.status === 'approved' && (
+                  <button 
+                    onClick={() => { revokeBadge(selectedRequest.user_id); setSelectedRequest(null) }}
+                    className="flex-1 py-2.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 rounded-lg font-medium text-sm flex items-center justify-center gap-2"
+                  >
+                    <FiX className="w-4 h-4" /> Retirer le badge
+                  </button>
+                )}
+                <button 
+                  onClick={() => deleteRequest(selectedRequest.id)}
+                  className="flex-1 py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg font-medium text-sm flex items-center justify-center gap-2"
+                >
+                  <FiTrash2 className="w-4 h-4" /> Supprimer la demande
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1155,8 +1580,13 @@ const AdminAds = () => {
             ads.length === 0 ? <tr><td colSpan={6} className="py-8 text-center text-dark-400">Aucune publicité</td></tr> :
             ads.map(a => (
               <tr key={a.id} className="hover:bg-dark-700/30">
-                <td className="px-4 py-3 font-medium">{a.title}</td>
-                <td className="px-4 py-3"><span className="px-2 py-1 rounded text-xs bg-dark-600">{a.ad_type}</span></td>
+                <td className="px-4 py-3 font-medium">
+                  <div>
+                    <p>{a.title}</p>
+                    {a.company_name && <p className="text-xs text-dark-400">{a.company_name}</p>}
+                  </div>
+                </td>
+                <td className="px-4 py-3"><span className="px-2 py-1 rounded text-xs bg-dark-600">{a.ad_type === 'banner' ? 'Pub simple' : a.ad_type}</span></td>
                 <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs ${a.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-dark-600'}`}>{a.status}</span></td>
                 <td className="px-4 py-3 text-sm">{formatNumber(a.impressions || 0)}</td>
                 <td className="px-4 py-3 text-sm">{formatNumber(a.clicks || 0)}</td>
@@ -1174,16 +1604,19 @@ const AdminAds = () => {
         ads.map(a => (
           <div key={a.id} className="bg-dark-800 rounded-xl border border-dark-700 p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="font-medium">{a.title}</p>
-              <span className={`px-2 py-1 rounded text-xs ${a.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-dark-600'}`}>{a.status}</span>
+              <div className="min-w-0 flex-1 mr-2">
+                <p className="font-medium truncate">{a.title}</p>
+                {a.company_name && <p className="text-xs text-dark-400 truncate">{a.company_name}</p>}
+              </div>
+              <span className={`px-2 py-1 rounded text-xs flex-shrink-0 ${a.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-dark-600'}`}>{a.status === 'active' ? 'Actif' : a.status === 'paused' ? 'Pause' : 'Brouillon'}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-3">
-                <span className="px-2 py-0.5 rounded text-xs bg-dark-600">{a.ad_type}</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2 py-0.5 rounded text-xs bg-dark-600">{a.ad_type === 'banner' ? 'Pub simple' : a.ad_type}</span>
                 <span className="text-dark-400 text-xs">{formatNumber(a.impressions || 0)} imp.</span>
                 <span className="text-dark-400 text-xs">{formatNumber(a.clicks || 0)} clics</span>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-shrink-0">
                 <button onClick={() => { setEditingAd(a); setShowModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg"><FiEdit className="w-4 h-4" /></button>
                 <button onClick={() => deleteAd(a.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"><FiTrash2 className="w-4 h-4" /></button>
               </div>
@@ -1228,6 +1661,8 @@ const AdModal = ({ ad, onClose, onSave }) => {
     target_url: ad?.target_url || '', 
     position: ad?.position || 'in_feed', 
     status: ad?.status || 'draft',
+    company_name: ad?.company_name || '',
+    skip_duration: ad?.skip_duration || 5,
     targeting_mode: hasTargeting ? 'targeted' : 'general',
     target_countries: parseTargetArray(ad?.target_countries),
     target_devices: parseTargetArray(ad?.target_devices),
@@ -1252,7 +1687,7 @@ const AdModal = ({ ad, onClose, onSave }) => {
   ]
   const positions = [
     { id: 'in_feed', name: 'Dans le flux', desc: 'Entre les vidéos suggérées' },
-    { id: 'pre_roll', name: 'Pré-roll', desc: 'Avant la vidéo (skippable 5s)' },
+    { id: 'pre_roll', name: 'Pré-roll', desc: `Avant la vidéo (skippable ${form.skip_duration}s)` },
     { id: 'header', name: 'Bannière haute', desc: 'En haut de page' }
   ]
 
@@ -1286,6 +1721,7 @@ const AdModal = ({ ad, onClose, onSave }) => {
     e.preventDefault()
     const data = {
       ...form,
+      skip_duration: form.position === 'pre_roll' ? form.skip_duration : 5,
       target_countries: JSON.stringify(form.target_countries),
       target_devices: JSON.stringify(form.target_devices),
       target_categories: JSON.stringify(form.target_categories)
@@ -1353,15 +1789,22 @@ const AdModal = ({ ad, onClose, onSave }) => {
         <form onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto flex-1">
           {activeTab === 'general' && (
             <>
-              <div>
-                <label className="block text-sm font-medium mb-1">Titre *</label>
-                <input type="text" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:outline-none" placeholder="Nom de la campagne" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Titre *</label>
+                  <input type="text" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:outline-none" placeholder="Nom de la campagne" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Nom de l'entreprise</label>
+                  <input type="text" value={form.company_name} onChange={e => setForm({ ...form, company_name: e.target.value })} className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:outline-none" placeholder="Non affiché sur la pub" />
+                  <p className="text-xs text-dark-500 mt-1">Usage interne uniquement</p>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Description</label>
                 <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:outline-none resize-none" rows={2} placeholder="Description de la publicité..." />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Type de publicité</label>
                   <select value={form.ad_type} onChange={e => setForm({ ...form, ad_type: e.target.value })} className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg">
@@ -1379,7 +1822,7 @@ const AdModal = ({ ad, onClose, onSave }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Position d'affichage</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {positions.map(pos => (
                     <button
                       key={pos.id}
@@ -1393,6 +1836,28 @@ const AdModal = ({ ad, onClose, onSave }) => {
                   ))}
                 </div>
               </div>
+              {form.position === 'pre_roll' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Durée avant skip (secondes)</label>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 relative">
+                      <input 
+                        type="range" 
+                        min="3" 
+                        max="30" 
+                        value={form.skip_duration} 
+                        onChange={e => setForm({ ...form, skip_duration: parseInt(e.target.value) })} 
+                        className="w-full h-2 bg-dark-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary-500 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary-500 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer" 
+                        style={{
+                          background: `linear-gradient(to right, rgb(99, 102, 241) 0%, rgb(99, 102, 241) ${((form.skip_duration - 3) / 27) * 100}%, rgb(55, 65, 81) ${((form.skip_duration - 3) / 27) * 100}%, rgb(55, 65, 81) 100%)`
+                        }}
+                      />
+                    </div>
+                    <span className="w-14 text-center font-bold text-lg bg-primary-500/20 text-primary-400 px-2 py-1 rounded">{form.skip_duration}s</span>
+                  </div>
+                  <p className="text-xs text-dark-500 mt-1">L'utilisateur pourra passer la pub après ce délai</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-1">URL de destination *</label>
                 <input type="url" value={form.target_url} onChange={e => setForm({ ...form, target_url: e.target.value })} required className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg focus:border-primary-500 focus:outline-none" placeholder="https://votre-site.com" />
@@ -1478,9 +1943,9 @@ const AdModal = ({ ad, onClose, onSave }) => {
               <div className="bg-dark-800/50 rounded-lg p-3 text-sm">
                 <p className="font-medium mb-1">📐 Dimensions recommandées</p>
                 <ul className="text-xs text-dark-400 space-y-1">
-                  <li>• <strong>Sidebar</strong>: 300x250px ou 300x600px</li>
-                  <li>• <strong>Dans le flux</strong>: 16:9 (1280x720px)</li>
-                  <li>• <strong>Bannière</strong>: 728x90px ou 970x90px</li>
+                  <li>• <strong>Dans le flux</strong>: 16:9 (1280×720px) - Image ou vidéo</li>
+                  <li>• <strong>Pré-roll</strong>: 16:9 (1280×720px) - Vidéo recommandée</li>
+                  <li>• <strong>Bannière haute</strong>: 728×90px ou 970×90px</li>
                 </ul>
               </div>
             </>
@@ -1579,148 +2044,6 @@ const AdModal = ({ ad, onClose, onSave }) => {
             <button type="submit" className="flex-1 py-2.5 bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors font-medium">{ad ? 'Enregistrer' : 'Créer la publicité'}</button>
           </div>
         </form>
-      </div>
-    </div>
-  )
-}
-
-const AdminSettings = () => {
-  const [settings, setSettings] = useState({})
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [platformName, setPlatformName] = useState('')
-
-  useEffect(() => { fetchSettings() }, [])
-
-  const fetchSettings = async () => { 
-    try { 
-      const res = await api.get('/admin/settings')
-      setSettings(res.data)
-      setPlatformName(res.data.platform_name || '')
-    } catch (e) { console.error(e) } 
-    finally { setLoading(false) } 
-  }
-
-  const updateSetting = async (key, value) => { 
-    setSaving(true)
-    try { 
-      await api.patch(`/admin/settings/${key}`, { value })
-      setSettings({ ...settings, [key]: value })
-    } catch (e) { console.error(e) } 
-    finally { setSaving(false) }
-  }
-
-  const savePlatformName = async () => {
-    if (platformName !== settings.platform_name) {
-      await updateSetting('platform_name', platformName)
-    }
-  }
-
-  const isEnabled = (key) => settings[key] === true || settings[key] === 'true'
-
-  if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div></div>
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Paramètres</h1>
-        <button onClick={fetchSettings} disabled={loading} className="px-4 py-2 bg-dark-700 hover:bg-dark-600 border border-dark-600 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50">
-          <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
-      
-      <div className="bg-dark-800 rounded-xl border border-dark-700 divide-y divide-dark-700">
-        <div className="p-4">
-          <h3 className="font-semibold mb-4">Général</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div><p className="font-medium">Nom de la plateforme</p><p className="text-sm text-dark-400">Affiché partout sur le site</p></div>
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={platformName} 
-                  onChange={e => setPlatformName(e.target.value)} 
-                  onBlur={savePlatformName}
-                  onKeyDown={e => e.key === 'Enter' && savePlatformName()}
-                  className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg w-48" 
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div><p className="font-medium">Mode maintenance</p><p className="text-sm text-dark-400">Bloquer l'accès au site</p></div>
-              <button 
-                onClick={() => updateSetting('maintenance_mode', !isEnabled('maintenance_mode'))} 
-                disabled={saving}
-                className={`p-2 rounded-lg transition-colors ${isEnabled('maintenance_mode') ? 'bg-red-500/20 text-red-400' : 'bg-dark-700 text-dark-400'}`}
-              >
-                {isEnabled('maintenance_mode') ? <FiToggleRight className="w-6 h-6" /> : <FiToggleLeft className="w-6 h-6" />}
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div className="p-4">
-          <h3 className="font-semibold mb-4">Inscriptions</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div><p className="font-medium">Inscriptions activées</p><p className="text-sm text-dark-400">Permettre les nouveaux comptes</p></div>
-              <button 
-                onClick={() => updateSetting('registration_enabled', !isEnabled('registration_enabled'))} 
-                disabled={saving}
-                className={`p-2 rounded-lg transition-colors ${isEnabled('registration_enabled') ? 'bg-green-500/20 text-green-400' : 'bg-dark-700 text-dark-400'}`}
-              >
-                {isEnabled('registration_enabled') ? <FiToggleRight className="w-6 h-6" /> : <FiToggleLeft className="w-6 h-6" />}
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div className="p-4">
-          <h3 className="font-semibold mb-4">Stockage</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div><p className="font-medium">Limite par défaut</p><p className="text-sm text-dark-400">Espace pour les nouveaux utilisateurs</p></div>
-              <select 
-                value={settings.default_storage_limit || 5368709120} 
-                onChange={e => updateSetting('default_storage_limit', e.target.value)} 
-                className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
-              >
-                <option value="1073741824">1 GB</option>
-                <option value="2147483648">2 GB</option>
-                <option value="5368709120">5 GB</option>
-                <option value="10737418240">10 GB</option>
-                <option value="21474836480">20 GB</option>
-              </select>
-            </div>
-            <div className="flex items-center justify-between">
-              <div><p className="font-medium">Taille max vidéo</p><p className="text-sm text-dark-400">Taille maximale par fichier</p></div>
-              <select 
-                value={settings.max_video_size || 2147483648} 
-                onChange={e => updateSetting('max_video_size', e.target.value)} 
-                className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg"
-              >
-                <option value="536870912">500 MB</option>
-                <option value="1073741824">1 GB</option>
-                <option value="2147483648">2 GB</option>
-                <option value="5368709120">5 GB</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        
-        <div className="p-4">
-          <h3 className="font-semibold mb-4">Publicités</h3>
-          <div className="flex items-center justify-between">
-            <div><p className="font-medium">Publicités activées</p><p className="text-sm text-dark-400">Afficher les publicités sur le site</p></div>
-            <button 
-              onClick={() => updateSetting('ads_enabled', !isEnabled('ads_enabled'))} 
-              disabled={saving}
-              className={`p-2 rounded-lg transition-colors ${isEnabled('ads_enabled') ? 'bg-green-500/20 text-green-400' : 'bg-dark-700 text-dark-400'}`}
-            >
-              {isEnabled('ads_enabled') ? <FiToggleRight className="w-6 h-6" /> : <FiToggleLeft className="w-6 h-6" />}
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   )
@@ -2296,6 +2619,312 @@ const AdminAdmins = () => {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+const AdminSettings = () => {
+  const [settings, setSettings] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(false)
+
+  useEffect(() => {
+    fetchSettings()
+  }, [])
+
+  const fetchSettings = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await api.get('/admin/settings')
+      console.log('Full API response:', res)
+      console.log('Response data:', res.data)
+      console.log('Fetched settings:', res.data.settings)
+      setSettings(res.data.settings || {})
+    } catch (e) {
+      console.error('Error fetching settings:', e)
+      setError(e.response?.data?.error || 'Erreur de chargement')
+      setSettings({})
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    setSuccess(false)
+    try {
+      const updates = {}
+      Object.keys(settings).forEach(key => {
+        updates[key] = settings[key].value
+      })
+      console.log('Saving settings:', updates)
+      const res = await api.put('/admin/settings', updates)
+      console.log('Settings saved:', res.data)
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+      // Refresh settings to show updated values
+      await fetchSettings()
+    } catch (e) {
+      console.error('Error saving settings:', e)
+      setError(e.response?.data?.error || 'Erreur lors de la sauvegarde')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const updateSetting = (key, value) => {
+    setSettings(prev => {
+      // Ensure the key exists in prev
+      if (!prev[key]) {
+        console.warn(`Setting key "${key}" not found in settings`)
+        return prev
+      }
+      return {
+        ...prev,
+        [key]: { 
+          ...prev[key], 
+          value 
+        }
+      }
+    })
+  }
+
+  const formatBytes = (bytes) => {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Paramètres</h1>
+          <p className="text-dark-400 text-sm">Configuration globale de la plateforme</p>
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full sm:w-auto px-6 py-2.5 bg-primary-500 hover:bg-primary-600 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
+        >
+          {saving ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+              <span>Enregistrement...</span>
+            </>
+          ) : (
+            <>
+              <FiRefreshCw className="w-4 h-4" />
+              <span>Enregistrer</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Success/Error Messages */}
+      {success && (
+        <div className="mb-6 p-4 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400">
+          ✓ Paramètres enregistrés avec succès
+        </div>
+      )}
+      {error && (
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400">
+          ✗ {error}
+        </div>
+      )}
+
+      <div className="space-y-6">
+        {/* Général */}
+        <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-dark-700 bg-dark-700/30">
+            <h2 className="text-lg font-semibold">Général</h2>
+          </div>
+          <div className="p-4 sm:p-6 space-y-6">
+            {/* Platform Name */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Nom de la plateforme
+              </label>
+              <p className="text-xs text-dark-400 mb-3">Affiché partout sur le site</p>
+              <input
+                type="text"
+                value={settings.platform_name?.value || ''}
+                onChange={(e) => updateSetting('platform_name', e.target.value)}
+                className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none transition-colors"
+                placeholder="Tipoko"
+              />
+            </div>
+
+            {/* Maintenance Mode */}
+            <div className="flex items-start justify-between gap-4 p-4 bg-dark-900/50 rounded-xl border border-dark-700">
+              <div className="flex-1">
+                <h3 className="font-medium mb-1">Mode maintenance</h3>
+                <p className="text-xs text-dark-400">Bloquer l'accès au site</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.maintenance_mode?.value || false}
+                  onChange={(e) => updateSetting('maintenance_mode', e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-dark-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Inscriptions */}
+        <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-dark-700 bg-dark-700/30">
+            <h2 className="text-lg font-semibold">Inscriptions</h2>
+          </div>
+          <div className="p-4 sm:p-6">
+            <div className="flex items-start justify-between gap-4 p-4 bg-dark-900/50 rounded-xl border border-dark-700">
+              <div className="flex-1">
+                <h3 className="font-medium mb-1">Inscriptions activées</h3>
+                <p className="text-xs text-dark-400">Permettre les nouveaux comptes</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.registrations_enabled?.value || false}
+                  onChange={(e) => updateSetting('registrations_enabled', e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-dark-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Stockage */}
+        <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-dark-700 bg-dark-700/30">
+            <h2 className="text-lg font-semibold">Stockage</h2>
+          </div>
+          <div className="p-4 sm:p-6 space-y-6">
+            {/* Default Storage Limit */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Limite par défaut
+              </label>
+              <p className="text-xs text-dark-400 mb-3">Espace pour les nouveaux utilisateurs</p>
+              <select
+                value={settings.default_storage_limit?.value || 5368709120}
+                onChange={(e) => updateSetting('default_storage_limit', parseInt(e.target.value))}
+                className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none transition-colors"
+              >
+                <option value={1073741824}>💾 1 GB</option>
+                <option value={2147483648}>💾 2 GB</option>
+                <option value={5368709120}>💾 5 GB</option>
+                <option value={10737418240}>💾 10 GB</option>
+                <option value={21474836480}>💾 20 GB</option>
+                <option value={53687091200}>💾 50 GB</option>
+                <option value={107374182400}>💾 100 GB</option>
+              </select>
+            </div>
+
+            {/* Max Video Size */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Taille max vidéo
+              </label>
+              <p className="text-xs text-dark-400 mb-3">Taille maximale par fichier</p>
+              <select
+                value={settings.max_video_size?.value || 2147483648}
+                onChange={(e) => updateSetting('max_video_size', parseInt(e.target.value))}
+                className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none transition-colors"
+              >
+                <option value={536870912}>📹 512 MB</option>
+                <option value={1073741824}>📹 1 GB</option>
+                <option value={2147483648}>📹 2 GB</option>
+                <option value={5368709120}>📹 5 GB</option>
+                <option value={10737418240}>📹 10 GB</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Publicités */}
+        <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-dark-700 bg-dark-700/30">
+            <h2 className="text-lg font-semibold">Publicités</h2>
+          </div>
+          <div className="p-4 sm:p-6">
+            <div className="flex items-start justify-between gap-4 p-4 bg-dark-900/50 rounded-xl border border-dark-700">
+              <div className="flex-1">
+                <h3 className="font-medium mb-1">Publicités activées</h3>
+                <p className="text-xs text-dark-400">Afficher les publicités sur le site</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.ads_enabled?.value || false}
+                  onChange={(e) => updateSetting('ads_enabled', e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-dark-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Fonctionnalités */}
+        <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-dark-700 bg-dark-700/30">
+            <h2 className="text-lg font-semibold">Fonctionnalités</h2>
+          </div>
+          <div className="p-4 sm:p-6 space-y-4">
+            <div className="flex items-start justify-between gap-4 p-4 bg-dark-900/50 rounded-xl border border-dark-700">
+              <div className="flex-1">
+                <h3 className="font-medium mb-1">Commentaires</h3>
+                <p className="text-xs text-dark-400">Permettre les commentaires sur les vidéos</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.comments_enabled?.value || false}
+                  onChange={(e) => updateSetting('comments_enabled', e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-dark-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+              </label>
+            </div>
+
+            <div className="flex items-start justify-between gap-4 p-4 bg-dark-900/50 rounded-xl border border-dark-700">
+              <div className="flex-1">
+                <h3 className="font-medium mb-1">Vérification email</h3>
+                <p className="text-xs text-dark-400">Vérification email obligatoire à l'inscription</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.email_verification_required?.value || false}
+                  onChange={(e) => updateSetting('email_verification_required', e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-dark-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

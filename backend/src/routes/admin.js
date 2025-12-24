@@ -154,7 +154,7 @@ router.get('/users', authenticate, isAdmin, asyncHandler(async (req, res) => {
     // Query with storage calculation from videos
     const users = await query(`
       SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.role, 
-             u.is_verified, u.is_active, u.created_at, u.last_login,
+             u.is_verified, u.is_active, u.created_at, u.last_login, u.storage_limit,
              COALESCE((
                SELECT SUM(v.file_size) 
                FROM videos v 
@@ -171,12 +171,12 @@ router.get('/users', authenticate, isAdmin, asyncHandler(async (req, res) => {
       ORDER BY u.created_at DESC LIMIT ? OFFSET ?
     `, [...params, parseInt(limit), parseInt(offset)]);
 
-    // Add default storage limit and ensure numbers are properly converted
+    // Ensure numbers are properly converted
     const usersWithStorage = users.map(u => ({
       ...u,
       storage_used: Number(u.storage_used) || 0,
       video_count: Number(u.video_count) || 0,
-      storage_limit: 5368709120
+      storage_limit: Number(u.storage_limit) || 5368709120
     }));
 
     const [countResult] = await query(`SELECT COUNT(*) as total FROM users u WHERE ${whereClause}`, params);
@@ -224,10 +224,12 @@ router.get('/users/:id', authenticate, isAdmin, asyncHandler(async (req, res) =>
 // Update user
 router.patch('/users/:id', authenticate, isAdmin, asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { role, isActive, isVerified, storageLimit } = req.body;
+  const { username, email, displayName, role, isActive, storageLimit, avatarUrl } = req.body;
+  
+  console.log('Update user request:', { id, username, email, displayName, role, isActive, storageLimit, avatarUrl });
 
-  // Cannot modify yourself
-  if (id === req.user.id) {
+  // Superadmin can modify their own account, but regular admins cannot
+  if (id === req.user.id && req.user.role !== 'superadmin') {
     return res.status(400).json({ error: 'Vous ne pouvez pas modifier votre propre compte ici' });
   }
 
@@ -242,51 +244,42 @@ router.patch('/users/:id', authenticate, isAdmin, asyncHandler(async (req, res) 
     return res.status(403).json({ error: 'Seul un superadmin peut modifier un administrateur' });
   }
 
-  // Cannot modify another superadmin
-  if (targetUser.role === 'superadmin') {
-    return res.status(403).json({ error: 'Impossible de modifier un superadmin' });
+  // Cannot modify another superadmin (but can modify yourself)
+  if (targetUser.role === 'superadmin' && req.user.id !== id) {
+    return res.status(403).json({ error: 'Impossible de modifier un autre superadmin' });
   }
 
   // Only superadmin can assign admin role
-  if (role === 'admin' && req.user.role !== 'superadmin') {
+  if (role && role === 'admin' && req.user.role !== 'superadmin') {
     return res.status(403).json({ error: 'Seul un superadmin peut promouvoir en admin' });
   }
 
-  // Cannot assign superadmin role
-  if (role === 'superadmin') {
+  // Cannot change superadmin role (even yourself)
+  if (role && role === 'superadmin' && targetUser.role !== 'superadmin') {
     return res.status(403).json({ error: 'Impossible d\'assigner le rôle superadmin' });
+  }
+  
+  // Superadmin cannot demote themselves
+  if (targetUser.role === 'superadmin' && req.user.id === id && role && role !== 'superadmin') {
+    return res.status(403).json({ error: 'Vous ne pouvez pas changer votre propre rôle de superadmin' });
   }
 
   const updates = [];
   const params = [];
 
+  if (username) { updates.push('username = ?'); params.push(username); }
+  if (email) { updates.push('email = ?'); params.push(email); }
+  if (displayName !== undefined) { updates.push('display_name = ?'); params.push(displayName || null); }
   if (role) { updates.push('role = ?'); params.push(role); }
   if (isActive !== undefined) { updates.push('is_active = ?'); params.push(isActive ? 1 : 0); }
-  if (isVerified !== undefined) { updates.push('is_verified = ?'); params.push(isVerified ? 1 : 0); }
-  
-  // Handle storage_limit separately (column may not exist)
-  if (storageLimit !== undefined) {
-    try {
-      await query('UPDATE users SET storage_limit = ? WHERE id = ?', [storageLimit, id]);
-    } catch (e) {
-      // Column doesn't exist, try to add it
-      try {
-        await query('ALTER TABLE users ADD COLUMN storage_limit BIGINT DEFAULT 5368709120');
-        await query('UPDATE users SET storage_limit = ? WHERE id = ?', [storageLimit, id]);
-      } catch (e2) {
-        console.log('Could not update storage_limit:', e2.message);
-      }
-    }
-  }
+  if (avatarUrl !== undefined) { updates.push('avatar_url = ?'); params.push(avatarUrl || null); }
+  if (storageLimit !== undefined) { updates.push('storage_limit = ?'); params.push(parseInt(storageLimit)); }
 
   if (updates.length > 0) {
     params.push(id);
-    await query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
-  }
-
-  // Sync channel verification status with user verification
-  if (isVerified !== undefined) {
-    await query(`UPDATE channels SET is_verified = ? WHERE user_id = ?`, [isVerified ? 1 : 0, id]);
+    const updateQuery = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
+    console.log('Executing update query:', updateQuery, 'with params:', params);
+    await query(updateQuery, params);
   }
 
   // Log the action
@@ -296,7 +289,7 @@ router.patch('/users/:id', authenticate, isAdmin, asyncHandler(async (req, res) 
     actionType: ACTION_TYPES.ADMIN,
     targetType: 'user',
     targetId: id,
-    details: { role, isActive, isVerified, previousRole: targetUser.role, targetUsername: targetUser.username }
+    details: { username, email, role, isActive, avatarUrl, previousRole: targetUser.role, targetUsername: targetUser.username }
   }, req);
 
   res.json({ message: 'Utilisateur mis à jour' });
@@ -642,7 +635,7 @@ router.get('/ads', authenticate, isAdmin, asyncHandler(async (req, res) => {
 
 // Create ad
 router.post('/ads', authenticate, isAdmin, asyncHandler(async (req, res) => {
-  const { title, description, ad_type, media_url, target_url, duration, position, priority, start_date, end_date, budget, cpm, status, targeting_mode, target_countries, target_devices, target_categories } = req.body;
+  const { title, description, ad_type, media_url, target_url, duration, position, priority, start_date, end_date, budget, cpm, status, targeting_mode, target_countries, target_devices, target_categories, skip_duration, company_name } = req.body;
 
   // Validate required fields
   if (!title || !target_url) {
@@ -659,9 +652,9 @@ router.post('/ads', authenticate, isAdmin, asyncHandler(async (req, res) => {
 
   const id = require('uuid').v4();
   await query(`
-    INSERT INTO ads (id, title, description, ad_type, media_url, target_url, duration, position, priority, start_date, end_date, budget, cpm, status, target_countries, target_devices, target_categories)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [id, title, description || '', adType, media_url || '', target_url, duration || 0, adPosition, priority || 1, start_date || null, end_date || null, budget || 0, cpm || 0, status || 'draft', target_countries || '[]', target_devices || '[]', target_categories || '[]']);
+    INSERT INTO ads (id, title, description, ad_type, media_url, target_url, duration, position, priority, start_date, end_date, budget, cpm, status, target_countries, target_devices, target_categories, skip_duration, company_name)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [id, title, description || '', adType, media_url || '', target_url, duration || 0, adPosition, priority || 1, start_date || null, end_date || null, budget || 0, cpm || 0, status || 'draft', target_countries || '[]', target_devices || '[]', target_categories || '[]', parseInt(skip_duration) || 5, company_name || '']);
 
   res.status(201).json({ message: 'Publicité créée', id });
 }));
@@ -669,7 +662,7 @@ router.post('/ads', authenticate, isAdmin, asyncHandler(async (req, res) => {
 // Update ad
 router.patch('/ads/:id', authenticate, isAdmin, asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { title, description, ad_type, media_url, target_url, duration, position, priority, start_date, end_date, budget, cpm, status, target_countries, target_devices, target_categories } = req.body;
+  const { title, description, ad_type, media_url, target_url, duration, position, priority, start_date, end_date, budget, cpm, status, target_countries, target_devices, target_categories, skip_duration, company_name } = req.body;
 
   // Validate ENUM values - must match database ENUM definitions
   const validPositions = ['sidebar', 'header', 'footer', 'pre_roll', 'mid_roll', 'post_roll', 'in_feed'];
@@ -731,6 +724,16 @@ router.patch('/ads/:id', authenticate, isAdmin, asyncHandler(async (req, res) =>
       const categoriesStr = typeof target_categories === 'string' ? target_categories : JSON.stringify(target_categories || []);
       updates.push('target_categories = ?'); 
       params.push(categoriesStr); 
+    }
+    
+    // Handle skip_duration and company_name
+    if (skip_duration !== undefined) { 
+      updates.push('skip_duration = ?'); 
+      params.push(parseInt(skip_duration) || 5); 
+    }
+    if (company_name !== undefined) { 
+      updates.push('company_name = ?'); 
+      params.push(company_name || ''); 
     }
 
     if (updates.length > 0) {
@@ -832,50 +835,7 @@ router.patch('/storage/user/:userId', authenticate, isAdmin, asyncHandler(async 
 }));
 
 // ==================== SETTINGS ====================
-
-// Get platform settings (admin)
-router.get('/settings', authenticate, isAdmin, asyncHandler(async (req, res) => {
-  const settings = await query('SELECT * FROM platform_settings');
-  const settingsObj = {};
-  settings.forEach(s => { 
-    // Convert values based on type
-    if (s.setting_type === 'boolean') {
-      settingsObj[s.setting_key] = s.setting_value === 'true';
-    } else if (s.setting_type === 'number') {
-      settingsObj[s.setting_key] = Number(s.setting_value);
-    } else {
-      settingsObj[s.setting_key] = s.setting_value;
-    }
-  });
-  res.json(settingsObj);
-}));
-
-// Update single platform setting
-router.patch('/settings/:key', authenticate, isAdmin, asyncHandler(async (req, res) => {
-  const { key } = req.params;
-  const { value } = req.body;
-
-  await query(`
-    INSERT INTO platform_settings (setting_key, setting_value) VALUES (?, ?)
-    ON DUPLICATE KEY UPDATE setting_value = ?
-  `, [key, String(value), String(value)]);
-
-  res.json({ message: 'Paramètre mis à jour' });
-}));
-
-// Update multiple settings at once
-router.put('/settings', authenticate, isAdmin, asyncHandler(async (req, res) => {
-  const settings = req.body;
-  
-  for (const [key, value] of Object.entries(settings)) {
-    await query(`
-      INSERT INTO platform_settings (setting_key, setting_value) VALUES (?, ?)
-      ON DUPLICATE KEY UPDATE setting_value = ?
-    `, [key, String(value), String(value)]);
-  }
-
-  res.json({ message: 'Paramètres mis à jour' });
-}));
+// Old platform_settings routes removed - using new settings table below
 
 // ==================== VERIFICATION REQUESTS ====================
 
@@ -956,13 +916,17 @@ router.patch('/verifications/:id', authenticate, isAdmin, asyncHandler(async (re
   res.json({ message: status === 'approved' ? 'Compte vérifié avec succès' : 'Demande rejetée' });
 }));
 
-// Revoke verification badge
+// Revoke verification badge (keeps request, allows re-approval)
 router.delete('/verifications/badge/:userId', authenticate, isAdmin, asyncHandler(async (req, res) => {
   const { userId } = req.params;
 
+  // Remove badge from user
   await query(`UPDATE users SET is_verified = 0 WHERE id = ?`, [userId]);
   await query(`UPDATE channels SET is_verified = 0 WHERE user_id = ?`, [userId]);
   await query(`UPDATE users SET verification_badge = 0, verified_at = NULL WHERE id = ?`, [userId]).catch(() => {});
+  
+  // Set the approved request back to pending so it can be re-approved
+  await query(`UPDATE verification_requests SET status = 'pending', reviewed_at = NULL, reviewed_by = NULL WHERE user_id = ? AND status = 'approved'`, [userId]);
 
   await logActivity({
     userId: req.user.id,
@@ -974,6 +938,38 @@ router.delete('/verifications/badge/:userId', authenticate, isAdmin, asyncHandle
   }, req);
 
   res.json({ message: 'Badge de vérification retiré' });
+}));
+
+// Delete verification request (and remove badge if approved)
+router.delete('/verifications/:id', authenticate, isAdmin, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Get the request first
+  const [request] = await query('SELECT * FROM verification_requests WHERE id = ?', [id]);
+  if (!request) {
+    return res.status(404).json({ error: 'Demande non trouvée' });
+  }
+
+  // If was approved, remove badge
+  if (request.status === 'approved') {
+    await query(`UPDATE users SET is_verified = 0 WHERE id = ?`, [request.user_id]);
+    await query(`UPDATE channels SET is_verified = 0 WHERE user_id = ?`, [request.user_id]);
+    await query(`UPDATE users SET verification_badge = 0, verified_at = NULL WHERE id = ?`, [request.user_id]).catch(() => {});
+  }
+
+  // Delete the request
+  await query('DELETE FROM verification_requests WHERE id = ?', [id]);
+
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.ADMIN_VERIFY_USER,
+    actionType: ACTION_TYPES.ADMIN,
+    targetType: 'user',
+    targetId: request.user_id,
+    details: { action: 'delete_request', requestId: id }
+  }, req);
+
+  res.json({ message: 'Demande supprimée' });
 }));
 
 // ==================== ACTIVITY LOGS ====================
@@ -1252,6 +1248,62 @@ router.post('/admins/promote/:userId', authenticate, isSuperAdmin, asyncHandler(
   }, req);
 
   res.json({ message: 'Utilisateur promu administrateur' });
+}));
+
+// Get all settings
+router.get('/settings', authenticate, isAdmin, asyncHandler(async (req, res) => {
+  const settings = await query('SELECT * FROM settings ORDER BY setting_key');
+  
+  console.log('Raw settings from DB:', settings);
+  
+  // Convert to key-value object
+  const settingsObj = {};
+  settings.forEach(s => {
+    let value = s.setting_value;
+    if (s.setting_type === 'boolean') {
+      value = value === 'true';
+    } else if (s.setting_type === 'number') {
+      value = parseInt(value);
+    }
+    settingsObj[s.setting_key] = {
+      value,
+      type: s.setting_type,
+      description: s.description
+    };
+  });
+  
+  console.log('Sending settings:', settingsObj);
+  
+  res.json({ settings: settingsObj });
+}));
+
+// Update settings
+router.put('/settings', authenticate, isSuperAdmin, asyncHandler(async (req, res) => {
+  const updates = req.body;
+  
+  console.log('Updating settings:', updates);
+  
+  for (const [key, value] of Object.entries(updates)) {
+    let stringValue = String(value);
+    
+    const result = await query(
+      'UPDATE settings SET setting_value = ?, updated_at = NOW() WHERE setting_key = ?',
+      [stringValue, key]
+    );
+    
+    console.log(`Updated ${key} to ${stringValue}, affected rows:`, result.affectedRows);
+  }
+  
+  // Log the action
+  await logActivity({
+    userId: req.user.id,
+    action: ACTIONS.ADMIN_UPDATE_SETTINGS,
+    actionType: ACTION_TYPES.ADMIN,
+    targetType: 'settings',
+    details: { updatedKeys: Object.keys(updates) }
+  }, req);
+  
+  res.json({ message: 'Paramètres mis à jour avec succès' });
 }));
 
 module.exports = router;
