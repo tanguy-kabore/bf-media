@@ -2704,6 +2704,106 @@ const AdminAdmins = () => {
   )
 }
 
+// Earnings Rates Configuration
+const EarningsRatesConfig = () => {
+  const [rates, setRates] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => { fetchRates() }, [])
+
+  const fetchRates = async () => {
+    try {
+      const res = await api.get('/admin/earnings/rates')
+      setRates(res.data.rates)
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+
+  const saveRates = async () => {
+    setSaving(true)
+    try {
+      await api.put('/admin/earnings/rates', {
+        per_view: parseFloat(rates.PER_VIEW),
+        per_watch_minute: parseFloat(rates.PER_WATCH_MINUTE),
+        engagement_bonus: parseFloat(rates.ENGAGEMENT_BONUS),
+        min_retention_for_bonus: parseFloat(rates.MIN_RETENTION_FOR_BONUS),
+        min_payout: parseFloat(rates.MIN_PAYOUT)
+      })
+      alert('Taux mis à jour avec succès')
+      fetchRates()
+    } catch (e) { alert(e.response?.data?.error || 'Erreur') }
+    finally { setSaving(false) }
+  }
+
+  if (loading) return <div className="text-center py-4">Chargement...</div>
+  if (!rates) return null
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-2">Taux par vue (XOF)</label>
+          <input
+            type="number"
+            step="0.1"
+            value={rates.PER_VIEW}
+            onChange={e => setRates({...rates, PER_VIEW: e.target.value})}
+            className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-2">Taux par minute (XOF)</label>
+          <input
+            type="number"
+            step="0.1"
+            value={rates.PER_WATCH_MINUTE}
+            onChange={e => setRates({...rates, PER_WATCH_MINUTE: e.target.value})}
+            className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-2">Bonus engagement (%)</label>
+          <input
+            type="number"
+            step="0.01"
+            value={rates.ENGAGEMENT_BONUS * 100}
+            onChange={e => setRates({...rates, ENGAGEMENT_BONUS: e.target.value / 100})}
+            className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-2">Rétention min pour bonus (%)</label>
+          <input
+            type="number"
+            step="1"
+            value={rates.MIN_RETENTION_FOR_BONUS * 100}
+            onChange={e => setRates({...rates, MIN_RETENTION_FOR_BONUS: e.target.value / 100})}
+            className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium mb-2">Seuil minimum de paiement (XOF)</label>
+          <input
+            type="number"
+            step="100"
+            value={rates.MIN_PAYOUT}
+            onChange={e => setRates({...rates, MIN_PAYOUT: e.target.value})}
+            className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg"
+          />
+        </div>
+      </div>
+      <button
+        onClick={saveRates}
+        disabled={saving}
+        className="w-full px-4 py-2.5 bg-primary-500 hover:bg-primary-600 rounded-lg font-medium disabled:opacity-50"
+      >
+        {saving ? 'Enregistrement...' : 'Enregistrer les taux'}
+      </button>
+    </div>
+  )
+}
+
 // Earnings Management
 const AdminEarnings = () => {
   const [users, setUsers] = useState([])
@@ -2798,6 +2898,16 @@ const AdminEarnings = () => {
     } catch (e) { alert(e.response?.data?.error || 'Erreur') }
   }
 
+  const calculateUserEarnings = async (userId) => {
+    if (!confirm('Calculer les revenus de cet utilisateur pour la semaine en cours ?')) return
+    try {
+      const res = await api.post(`/admin/earnings/calculate-user/${userId}`)
+      alert(`Revenus calculés: ${res.data.earnings?.total_earnings || 0} XOF`)
+      fetchUsers()
+      fetchStats()
+    } catch (e) { alert(e.response?.data?.error || 'Erreur') }
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
@@ -2886,6 +2996,11 @@ const AdminEarnings = () => {
                             Vérifier
                           </button>
                         )}
+                        {user.is_verified && (
+                          <button onClick={() => calculateUserEarnings(user.id)} className="px-3 py-1 bg-primary-500/20 text-primary-400 rounded text-xs">
+                            Calculer
+                          </button>
+                        )}
                         {user.pending_earnings > 0 && (
                           <>
                             <button onClick={() => approveEarnings(user.id)} className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">
@@ -2949,6 +3064,11 @@ const AdminEarnings = () => {
                           {!user.is_verified && (
                             <button onClick={() => verifyUser(user.id)} className="p-2 hover:bg-blue-500/20 rounded-lg text-blue-400" title="Vérifier">
                               <FiCheck className="w-4 h-4" />
+                            </button>
+                          )}
+                          {user.is_verified && (
+                            <button onClick={() => calculateUserEarnings(user.id)} className="p-2 hover:bg-primary-500/20 rounded-lg text-primary-400" title="Calculer revenus">
+                              <FiCalendar className="w-4 h-4" />
                             </button>
                           )}
                           {user.pending_earnings > 0 && (
@@ -3210,6 +3330,16 @@ const AdminSettings = () => {
                 <div className="w-11 h-6 bg-dark-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
               </label>
             </div>
+          </div>
+        </div>
+
+        {/* Revenus */}
+        <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-dark-700 bg-dark-700/30">
+            <h2 className="text-lg font-semibold">Taux de rémunération</h2>
+          </div>
+          <div className="p-4 sm:p-6 space-y-6">
+            <EarningsRatesConfig />
           </div>
         </div>
 

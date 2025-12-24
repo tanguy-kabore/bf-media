@@ -22,7 +22,7 @@ const EARNING_RATES = {
 };
 
 /**
- * Obtenir le début et la fin d'une semaine donnée
+ * Obtenir les bornes de la semaine (lundi-dimanche)
  */
 function getWeekBounds(date = new Date()) {
   const d = new Date(date);
@@ -33,7 +33,7 @@ function getWeekBounds(date = new Date()) {
   weekStart.setHours(0, 0, 0, 0);
   
   const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
+  weekEnd.setDate(weekStart.getDate() + 6);
   weekEnd.setHours(23, 59, 59, 999);
   
   return { weekStart, weekEnd };
@@ -50,6 +50,10 @@ function getWeekNumber(date) {
   const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
   return `${d.getFullYear()}-W${weekNo.toString().padStart(2, '0')}`;
 }
+
+// Exporter les fonctions utilitaires
+module.exports.getWeekBounds = getWeekBounds;
+module.exports.getWeekNumber = getWeekNumber;
 
 /**
  * Calculer les revenus d'un utilisateur pour une période donnée

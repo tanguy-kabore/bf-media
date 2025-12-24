@@ -37,6 +37,110 @@ router.get('/rates', authenticate, isAdmin, asyncHandler(async (req, res) => {
   res.json({ rates: earningsCalculator.EARNING_RATES });
 }));
 
+// Update earning rates configuration
+router.put('/rates', authenticate, isAdmin, asyncHandler(async (req, res) => {
+  const { per_view, per_watch_minute, engagement_bonus, min_retention_for_bonus, min_payout } = req.body;
+  
+  // Valider les valeurs
+  if (per_view !== undefined && (per_view < 0 || per_view > 100)) {
+    return res.status(400).json({ error: 'Taux par vue invalide (0-100 XOF)' });
+  }
+  if (per_watch_minute !== undefined && (per_watch_minute < 0 || per_watch_minute > 100)) {
+    return res.status(400).json({ error: 'Taux par minute invalide (0-100 XOF)' });
+  }
+  if (engagement_bonus !== undefined && (engagement_bonus < 0 || engagement_bonus > 1)) {
+    return res.status(400).json({ error: 'Bonus invalide (0-1)' });
+  }
+  if (min_retention_for_bonus !== undefined && (min_retention_for_bonus < 0 || min_retention_for_bonus > 1)) {
+    return res.status(400).json({ error: 'Rétention minimale invalide (0-1)' });
+  }
+  if (min_payout !== undefined && (min_payout < 0 || min_payout > 100000)) {
+    return res.status(400).json({ error: 'Seuil de paiement invalide' });
+  }
+  
+  // Mettre à jour les taux
+  if (per_view !== undefined) earningsCalculator.EARNING_RATES.PER_VIEW = per_view;
+  if (per_watch_minute !== undefined) earningsCalculator.EARNING_RATES.PER_WATCH_MINUTE = per_watch_minute;
+  if (engagement_bonus !== undefined) earningsCalculator.EARNING_RATES.ENGAGEMENT_BONUS = engagement_bonus;
+  if (min_retention_for_bonus !== undefined) earningsCalculator.EARNING_RATES.MIN_RETENTION_FOR_BONUS = min_retention_for_bonus;
+  if (min_payout !== undefined) earningsCalculator.EARNING_RATES.MIN_PAYOUT = min_payout;
+  
+  res.json({ 
+    message: 'Taux mis à jour avec succès',
+    rates: earningsCalculator.EARNING_RATES 
+  });
+}));
+
+// Calculate earnings for a specific user (manual trigger)
+router.post('/calculate-user/:userId', authenticate, isAdmin, asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  
+  // Vérifier que l'utilisateur existe et est vérifié
+  const [user] = await query('SELECT is_verified FROM users WHERE id = ?', [userId]);
+  if (!user) {
+    return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  }
+  if (!user.is_verified) {
+    return res.status(403).json({ error: 'L\'utilisateur doit être vérifié' });
+  }
+  
+  // Calculer les revenus de la semaine en cours
+  const { weekStart, weekEnd } = earningsCalculator.getWeekBounds();
+  const weekNumber = earningsCalculator.getWeekNumber(new Date());
+  
+  // Vérifier si cette semaine a déjà été calculée
+  const [existing] = await query(
+    'SELECT id FROM weekly_earnings WHERE user_id = ? AND week_number = ?',
+    [userId, weekNumber]
+  );
+  
+  if (existing) {
+    return res.status(400).json({ error: 'Les revenus de cette semaine ont déjà été calculés' });
+  }
+  
+  const earnings = await earningsCalculator.calculateUserEarnings(userId, weekStart, weekEnd);
+  
+  if (earnings.total_earnings > 0) {
+    // Enregistrer les revenus hebdomadaires
+    const weeklyId = require('uuid').v4();
+    await query(`
+      INSERT INTO weekly_earnings (
+        id, user_id, week_number, week_start, week_end,
+        total_views, total_watch_minutes, total_earnings,
+        status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
+    `, [
+      weeklyId, userId, weekNumber, weekStart, weekEnd,
+      earnings.total_views, earnings.total_watch_minutes, earnings.total_earnings
+    ]);
+    
+    // Créer des entrées user_earnings pour chaque vidéo
+    for (const detail of earnings.details) {
+      const earningId = require('uuid').v4();
+      await query(`
+        INSERT INTO user_earnings (
+          id, user_id, video_id, amount, earning_type,
+          views, watch_minutes, status, created_at
+        ) VALUES (?, ?, ?, ?, 'view', ?, ?, 'pending', NOW())
+      `, [earningId, userId, detail.video_id, detail.earnings, detail.views, detail.watch_minutes]);
+    }
+    
+    // Mettre à jour les totaux de l'utilisateur
+    await query(`
+      UPDATE users 
+      SET total_earnings = total_earnings + ?,
+          pending_earnings = pending_earnings + ?
+      WHERE id = ?
+    `, [earnings.total_earnings, earnings.total_earnings, userId]);
+  }
+  
+  res.json({
+    message: 'Revenus calculés avec succès',
+    week_number: weekNumber,
+    earnings
+  });
+}));
+
 // Get all users with earnings (for admin)
 router.get('/users', authenticate, isAdmin, asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
