@@ -10,6 +10,7 @@ const { uploadVideo, uploadThumbnail } = require('../middleware/upload');
 const { asyncHandler } = require('../middleware/errorHandler');
 const videoProcessor = require('../services/videoProcessor');
 const { logActivity, ACTIONS, ACTION_TYPES } = require('../middleware/activityLogger');
+const { trackVideoView, trackEngagement } = require('../services/realtimeEarningsTracker');
 
 // Get all categories (public)
 router.get('/categories', asyncHandler(async (req, res) => {
@@ -43,7 +44,7 @@ router.get('/', optionalAuth, asyncHandler(async (req, res) => {
     SELECT v.id, v.title, v.description, v.thumbnail_url, v.duration, v.view_count,
            v.like_count, v.published_at, v.created_at,
            ch.id as channel_id, ch.name as channel_name, ch.handle as channel_handle,
-           COALESCE(ch.avatar_url, u.avatar_url) as channel_avatar, ch.is_verified as channel_verified,
+           COALESCE(ch.avatar_url, u.avatar_url) as channel_avatar, u.is_verified as channel_verified,
            cat.name as category_name, cat.slug as category_slug
     FROM videos v
     JOIN channels ch ON v.channel_id = ch.id
@@ -79,7 +80,7 @@ router.get('/:id', optionalAuth, asyncHandler(async (req, res) => {
   const videos = await query(`
     SELECT v.*, 
            ch.id as channel_id, ch.name as channel_name, ch.handle as channel_handle,
-           COALESCE(ch.avatar_url, u.avatar_url) as channel_avatar, ch.subscriber_count, ch.is_verified as channel_verified,
+           COALESCE(ch.avatar_url, u.avatar_url) as channel_avatar, ch.subscriber_count, u.is_verified as channel_verified,
            ch.user_id as user_id,
            cat.name as category_name, cat.slug as category_slug
     FROM videos v
@@ -461,6 +462,13 @@ router.post('/:id/react', authenticate, asyncHandler(async (req, res) => {
       await query('INSERT INTO video_likes (user_id, video_id, is_like) VALUES (?, ?, ?)', [req.user.id, id, isLike]);
       if (isLike) {
         await query('UPDATE videos SET like_count = like_count + 1 WHERE id = ?', [id]);
+        
+        // 🎯 TRACKING AUTOMATIQUE DES REVENUS - LIKE
+        try {
+          await trackEngagement(id, 'like', req.user.id);
+        } catch (error) {
+          console.error('Error tracking earnings for like:', error);
+        }
       } else {
         await query('UPDATE videos SET dislike_count = dislike_count + 1 WHERE id = ?', [id]);
       }
@@ -503,21 +511,21 @@ const parseUserAgent = (ua) => {
 // Get country from IP (using free API)
 const getCountryFromIP = async (ip) => {
   try {
-    // Skip for localhost/private IPs
+    // Pour les IPs locales, retourner "Burkina Faso" par défaut (environnement de développement)
     if (!ip || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
-      return null;
+      return 'Burkina Faso'; // Valeur par défaut pour le développement local
     }
     // Clean IP (remove ::ffff: prefix)
     const cleanIP = ip.replace('::ffff:', '');
     const response = await fetch(`http://ip-api.com/json/${cleanIP}?fields=country`);
     if (response.ok) {
       const data = await response.json();
-      return data.country || null;
+      return data.country || 'Burkina Faso';
     }
   } catch (err) {
     console.error('IP geolocation error:', err.message);
   }
-  return null;
+  return 'Burkina Faso'; // Fallback par défaut
 };
 
 // Record view
@@ -543,35 +551,63 @@ router.post('/:id/view', optionalAuth, asyncHandler(async (req, res) => {
     isReturning = !!prev;
   }
 
-  await query('UPDATE videos SET view_count = view_count + 1 WHERE id = ?', [id]);
+  // Vérifier si une vue existe déjà pour cette session dans les dernières 24h
+  const [existingView] = await query(`
+    SELECT id FROM video_views 
+    WHERE video_id = ? 
+      AND session_id = ? 
+      AND viewed_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+    ORDER BY viewed_at DESC 
+    LIMIT 1
+  `, [id, sessionId]);
 
-  // Record detailed view analytics with all data
-  await query(`
-    INSERT INTO video_views (video_id, user_id, session_id, ip_address, user_agent, device_type, browser, os, is_returning, referrer, watch_duration, quality_watched, country)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [
-    id, 
-    req.user?.id || null, 
-    sessionId,
-    req.ip, 
-    userAgent, 
-    deviceType,
-    browser,
-    os,
-    isReturning,
-    req.headers['referer'] || null,
-    watchDuration || 0, 
-    quality || 'auto',
-    country
-  ]);
+  if (existingView) {
+    // Mettre à jour la vue existante avec le nouveau watch_duration
+    await query(`
+      UPDATE video_views 
+      SET watch_duration = ?, quality_watched = ?
+      WHERE id = ?
+    `, [watchDuration || 0, quality || 'auto', existingView.id]);
+  } else {
+    // Créer une nouvelle vue
+    await query('UPDATE videos SET view_count = view_count + 1 WHERE id = ?', [id]);
 
-  // Update channel total views
-  await query(`
-    UPDATE channels c
-    JOIN videos v ON c.id = v.channel_id
-    SET c.total_views = c.total_views + 1
-    WHERE v.id = ?
-  `, [id]);
+    await query(`
+      INSERT INTO video_views (video_id, user_id, session_id, ip_address, user_agent, device_type, browser, os, is_returning, referrer, watch_duration, quality_watched, country)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      id, 
+      req.user?.id || null, 
+      sessionId,
+      req.ip, 
+      userAgent, 
+      deviceType,
+      browser,
+      os,
+      isReturning,
+      req.headers['referer'] || null,
+      watchDuration || 0, 
+      quality || 'auto',
+      country
+    ]);
+
+    // Update channel total views
+    await query(`
+      UPDATE channels c
+      JOIN videos v ON c.id = v.channel_id
+      SET c.total_views = c.total_views + 1
+      WHERE v.id = ?
+    `, [id]);
+  }
+
+  // 🎯 CALCUL AUTOMATIQUE DES REVENUS EN TEMPS RÉEL
+  // Enregistrer les revenus pour cette vue automatiquement
+  try {
+    await trackVideoView(id, req.user?.id, watchDuration || 0);
+  } catch (error) {
+    console.error('Error tracking earnings for view:', error);
+    // Ne pas bloquer la requête si le tracking échoue
+  }
 
   res.json({ success: true });
 }));
@@ -601,20 +637,52 @@ router.post('/:id/watch/start', optionalAuth, asyncHandler(async (req, res) => {
 
   const watchSessionId = sessionId || `${req.ip}-${Date.now()}`;
 
-  // Create watch session
-  await query(`
-    INSERT INTO watch_sessions (
-      session_id, video_id, user_id, channel_id, channel_owner_id,
-      video_title, video_duration, category_id, category_name,
-      source, referrer, search_query, previous_video_id,
-      device_type, browser, os, country, ip_address, user_agent
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [
-    watchSessionId, id, req.user?.id || null, video.channel_id, video.channel_owner_id,
-    video.title, video.duration || 0, video.category_id, video.category_name,
-    source || 'direct', req.headers['referer'] || null, searchQuery || null, previousVideoId || null,
-    deviceType, browser, os, country, req.ip, userAgent
-  ]);
+  // Vérifier si une session existe déjà pour cette vidéo et ce session_id
+  const [existingSession] = await query(`
+    SELECT id FROM watch_sessions
+    WHERE session_id = ? AND video_id = ?
+    ORDER BY started_at DESC
+    LIMIT 1
+  `, [watchSessionId, id]);
+
+  if (existingSession) {
+    // Mettre à jour la session existante (réinitialiser pour un nouveau visionnage)
+    await query(`
+      UPDATE watch_sessions
+      SET started_at = NOW(),
+          last_updated = NOW(),
+          ended_at = NULL,
+          watch_duration = 0,
+          watch_percentage = 0,
+          completed = 0,
+          source = ?,
+          referrer = ?,
+          search_query = ?,
+          previous_video_id = ?
+      WHERE id = ?
+    `, [
+      source || 'direct',
+      req.headers['referer'] || null,
+      searchQuery || null,
+      previousVideoId || null,
+      existingSession.id
+    ]);
+  } else {
+    // Créer une nouvelle session
+    await query(`
+      INSERT INTO watch_sessions (
+        session_id, video_id, user_id, channel_id, channel_owner_id,
+        video_title, video_duration, category_id, category_name,
+        source, referrer, search_query, previous_video_id,
+        device_type, browser, os, country, ip_address, user_agent
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      watchSessionId, id, req.user?.id || null, video.channel_id, video.channel_owner_id,
+      video.title, video.duration || 0, video.category_id, video.category_name,
+      source || 'direct', req.headers['referer'] || null, searchQuery || null, previousVideoId || null,
+      deviceType, browser, os, country, req.ip, userAgent
+    ]);
+  }
 
   // Log video watch start to activity logs
   await logActivity({

@@ -56,7 +56,7 @@ router.get('/history/watch', authenticate, asyncHandler(async (req, res) => {
            wh.watch_time, wh.progress_percent, wh.watched_at,
            c.name as channel_name, c.handle as channel_handle,
            COALESCE(c.avatar_url, u.avatar_url) as channel_avatar,
-           c.is_verified as channel_verified
+           u.is_verified as channel_verified
     FROM watch_history wh
     JOIN videos v ON wh.video_id = v.id
     JOIN channels c ON v.channel_id = c.id
@@ -115,7 +115,7 @@ router.get('/saved', authenticate, asyncHandler(async (req, res) => {
            sv.created_at as saved_at,
            c.name as channel_name, c.handle as channel_handle,
            COALESCE(c.avatar_url, u.avatar_url) as channel_avatar,
-           c.is_verified as channel_verified
+           u.is_verified as channel_verified
     FROM saved_videos sv
     JOIN videos v ON sv.video_id = v.id
     JOIN channels c ON v.channel_id = c.id
@@ -152,7 +152,7 @@ router.get('/liked', authenticate, asyncHandler(async (req, res) => {
            vl.created_at as liked_at,
            c.name as channel_name, c.handle as channel_handle,
            COALESCE(c.avatar_url, u.avatar_url) as channel_avatar,
-           c.is_verified as channel_verified
+           u.is_verified as channel_verified
     FROM video_likes vl
     JOIN videos v ON vl.video_id = v.id
     JOIN channels c ON v.channel_id = c.id

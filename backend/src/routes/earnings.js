@@ -5,6 +5,7 @@ const { authenticate } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { v4: uuidv4 } = require('uuid');
 const earningsCalculator = require('../services/earningsCalculator');
+const { getUserRealtimeEarnings } = require('../services/realtimeEarningsTracker');
 
 // Get user's real-time earnings and stats
 router.get('/realtime', authenticate, asyncHandler(async (req, res) => {
@@ -16,7 +17,8 @@ router.get('/realtime', authenticate, asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'Compte non vérifié' });
   }
 
-  const stats = await earningsCalculator.getUserRealTimeStats(userId);
+  // Utiliser le nouveau service de tracking en temps réel
+  const stats = await getUserRealtimeEarnings(userId);
   res.json(stats);
 }));
 
@@ -122,7 +124,8 @@ router.get('/history', authenticate, asyncHandler(async (req, res) => {
     params
   );
 
-  // Récupérer les revenus
+  // Récupérer les revenus - simplement récupérer toutes les entrées
+  // Les doublons ont été corrigés à la source avec la logique de session_id
   const earnings = await query(`
     SELECT 
       e.*,

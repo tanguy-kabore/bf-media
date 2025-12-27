@@ -22,7 +22,7 @@ router.get('/', optionalAuth, asyncHandler(async (req, res) => {
       SELECT v.id, v.title, v.description, v.thumbnail_url, v.duration, v.view_count,
              v.published_at, v.created_at,
              c.id as channel_id, c.name as channel_name, c.handle as channel_handle,
-             COALESCE(c.avatar_url, u.avatar_url) as channel_avatar, c.is_verified as channel_verified,
+             COALESCE(c.avatar_url, u.avatar_url) as channel_avatar, u.is_verified as channel_verified,
              MATCH(v.title, v.description) AGAINST(? IN NATURAL LANGUAGE MODE) as relevance
       FROM videos v
       JOIN channels c ON v.channel_id = c.id

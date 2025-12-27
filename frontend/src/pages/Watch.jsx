@@ -73,13 +73,16 @@ export default function Watch() {
       fetchVideo()
       fetchRelatedVideos()
       fetchComments()
-      recordView()
+      // Ne pas appeler recordView() immédiatement, attendre que l'utilisateur regarde
       startWatchSession()
       fetchSavedProgress()
     }
     
     // Cleanup: save progress when leaving
     return () => {
+      // Enregistrer la vue avec le temps de visionnage réel avant de quitter
+      recordView()
+      
       // Save to localStorage directly in cleanup
       if (videoRef.current && videoIdRef.current) {
         const currentTime = videoRef.current.currentTime || 0
@@ -186,10 +189,16 @@ export default function Watch() {
 
   const recordView = async () => {
     try {
-      await api.post(`/videos/${id}/view`, { watchDuration: 0 })
+      // Calculer le temps de visionnage réel
+      const currentTime = videoRef.current?.currentTime || 0
+      const watchDuration = Math.floor(currentTime)
+      
+      await api.post(`/videos/${id}/view`, { watchDuration })
       // Add to watch history if authenticated
       if (isAuthenticated) {
-        await api.post('/users/history/watch', { videoId: id, watchTime: 0, progressPercent: 0 })
+        const duration = videoRef.current?.duration || 1
+        const progressPercent = Math.min(100, (currentTime / duration) * 100)
+        await api.post('/users/history/watch', { videoId: id, watchTime: watchDuration, progressPercent })
       }
     } catch (error) {
       console.error('Error recording view:', error)
@@ -199,14 +208,20 @@ export default function Watch() {
   // Start watch session when video loads
   const startWatchSession = async () => {
     try {
-      const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      // Réutiliser le sessionId existant pour cette vidéo ou en créer un nouveau
+      const existingSessionId = sessionStorage.getItem(`watchSession_${id}`)
+      const sessionId = existingSessionId || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      
       const response = await api.post(`/videos/${id}/watch/start`, {
         sessionId,
         source: document.referrer?.includes('search') ? 'search' : 'browse',
         searchQuery: new URLSearchParams(window.location.search).get('q'),
         previousVideoId: sessionStorage.getItem('lastVideoId')
       })
-      setWatchSessionId(response.data.watchSessionId || sessionId)
+      
+      const finalSessionId = response.data.watchSessionId || sessionId
+      setWatchSessionId(finalSessionId)
+      sessionStorage.setItem(`watchSession_${id}`, finalSessionId)
       watchStartTimeRef.current = Date.now()
       sessionStorage.setItem('lastVideoId', id)
     } catch (error) {
@@ -235,6 +250,9 @@ export default function Watch() {
     }))
     
     try {
+      // Mettre à jour la vue avec le temps de visionnage réel
+      await api.post(`/videos/${id}/view`, { watchDuration })
+      
       await api.post(`/videos/${id}/watch/progress`, {
         sessionId: watchSessionId,
         watchDuration,

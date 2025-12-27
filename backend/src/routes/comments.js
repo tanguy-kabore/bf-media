@@ -5,6 +5,7 @@ const { query } = require('../config/database');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { logActivity, ACTIONS, ACTION_TYPES } = require('../middleware/activityLogger');
+const { trackEngagement } = require('../services/realtimeEarningsTracker');
 
 // Get comments for a video
 router.get('/video/:videoId', optionalAuth, asyncHandler(async (req, res) => {
@@ -113,6 +114,13 @@ router.post('/video/:videoId', authenticate, asyncHandler(async (req, res) => {
   await query('UPDATE videos SET comment_count = comment_count + 1 WHERE id = ?', [videoId]);
   if (parentId) {
     await query('UPDATE comments SET reply_count = reply_count + 1 WHERE id = ?', [parentId]);
+  }
+
+  // 🎯 TRACKING AUTOMATIQUE DES REVENUS - COMMENTAIRE
+  try {
+    await trackEngagement(videoId, 'comment', req.user.id);
+  } catch (error) {
+    console.error('Error tracking earnings for comment:', error);
   }
 
   // Send notification to video owner (check preferences first)

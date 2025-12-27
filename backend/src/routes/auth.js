@@ -212,7 +212,7 @@ router.post('/login', loginValidation, asyncHandler(async (req, res) => {
 router.get('/me', authenticate, asyncHandler(async (req, res) => {
   const users = await query(
     `SELECT u.*, c.id as channel_id, c.handle as channel_handle, c.name as channel_name,
-            c.subscriber_count, c.video_count, c.is_verified as channel_verified
+            c.subscriber_count, c.video_count, u.is_verified as channel_verified
      FROM users u 
      LEFT JOIN channels c ON u.id = c.user_id 
      WHERE u.id = ?`,

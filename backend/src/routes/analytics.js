@@ -14,44 +14,59 @@ router.get('/channel', authenticate, asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Chaîne non trouvée' });
   }
 
-  // Total stats
+  // Total stats - utiliser watch_sessions pour compter les vues réelles
   const [totals] = await query(`
     SELECT 
-      SUM(view_count) as total_views,
-      SUM(like_count) as total_likes,
-      SUM(comment_count) as total_comments,
-      COUNT(*) as total_videos
-    FROM videos
-    WHERE channel_id = ? AND status = 'published'
-  `, [channel.id]);
+      COUNT(DISTINCT ws.video_id) as total_videos,
+      COUNT(*) as total_views
+    FROM watch_sessions ws
+    WHERE ws.channel_id = ? 
+      AND ws.started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+  `, [channel.id, days]);
+  
+  // Compter les likes réels depuis video_likes pour la période
+  const [likesStats] = await query(`
+    SELECT COUNT(*) as total_likes
+    FROM video_likes vl
+    JOIN videos v ON vl.video_id = v.id
+    WHERE v.channel_id = ?
+      AND vl.is_like = 1
+      AND vl.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+  `, [channel.id, days]);
+  
+  // Compter les commentaires réels depuis comments pour la période
+  const [commentsStats] = await query(`
+    SELECT COUNT(*) as total_comments
+    FROM comments c
+    JOIN videos v ON c.video_id = v.id
+    WHERE v.channel_id = ?
+      AND c.is_deleted = 0
+      AND c.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+  `, [channel.id, days]);
+  
+  // Fusionner les statistiques
+  totals.total_likes = parseInt(likesStats.total_likes) || 0;
+  totals.total_comments = parseInt(commentsStats.total_comments) || 0;
 
-  // Views over time
+  // Views over time - utiliser watch_sessions
   const viewsOverTime = await query(`
-    SELECT DATE(viewed_at) as date, COUNT(*) as views
-    FROM video_views vv
-    JOIN videos v ON vv.video_id = v.id
-    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-    GROUP BY DATE(viewed_at)
+    SELECT DATE(started_at) as date, COUNT(*) as views
+    FROM watch_sessions
+    WHERE channel_id = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+    GROUP BY DATE(started_at)
     ORDER BY date ASC
   `, [channel.id, days]);
 
-  // Watch time - combine from both video_views and watch_sessions
-  const [watchTimeViews] = await query(`
-    SELECT COALESCE(SUM(watch_duration), 0) as total
-    FROM video_views vv
-    JOIN videos v ON vv.video_id = v.id
-    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-  `, [channel.id, days]);
-  
+  // Watch time - utiliser UNIQUEMENT watch_sessions car c'est le tracker temps réel
+  // watch_sessions.watch_duration est mis à jour automatiquement toutes les 5 secondes
   const [watchTimeSessions] = await query(`
     SELECT COALESCE(SUM(watch_duration), 0) as total
     FROM watch_sessions ws
     WHERE ws.channel_id = ? AND ws.started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
   `, [channel.id, days]);
   
-  // Use the higher value (watch_sessions is more accurate when available)
   const watchTime = { 
-    total_watch_time: Math.max(watchTimeViews.total || 0, watchTimeSessions.total || 0) 
+    total_watch_time: watchTimeSessions.total || 0
   };
 
   // Subscriber growth
@@ -116,22 +131,24 @@ router.get('/channel', authenticate, asyncHandler(async (req, res) => {
     LIMIT 5
   `, [channel.id, days]);
 
-  // Unique viewers
+  // Unique viewers - utiliser watch_sessions
   const [uniqueViewers] = await query(`
     SELECT COUNT(DISTINCT COALESCE(user_id, session_id)) as unique_viewers
-    FROM video_views vv
-    JOIN videos v ON vv.video_id = v.id
-    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+    FROM watch_sessions
+    WHERE channel_id = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
   `, [channel.id, days]);
 
-  // New vs returning viewers
+  // New vs returning viewers - compter ceux qui ont plusieurs sessions
   const [viewerTypes] = await query(`
     SELECT 
-      SUM(CASE WHEN is_returning = 0 THEN 1 ELSE 0 END) as new_viewers,
-      SUM(CASE WHEN is_returning = 1 THEN 1 ELSE 0 END) as returning_viewers
-    FROM video_views vv
-    JOIN videos v ON vv.video_id = v.id
-    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+      COUNT(CASE WHEN view_count = 1 THEN 1 END) as new_viewers,
+      COUNT(CASE WHEN view_count > 1 THEN 1 END) as returning_viewers
+    FROM (
+      SELECT COALESCE(user_id, session_id) as viewer_id, COUNT(*) as view_count
+      FROM watch_sessions
+      WHERE channel_id = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+      GROUP BY viewer_id
+    ) as viewer_stats
   `, [channel.id, days]);
 
   // Watch time by hour of day
@@ -144,12 +161,13 @@ router.get('/channel', authenticate, asyncHandler(async (req, res) => {
     ORDER BY hour
   `, [channel.id, days]);
 
-  // Average watch duration
+  // Average watch duration (en secondes) - utiliser watch_sessions
   const [avgWatchDuration] = await query(`
     SELECT AVG(watch_duration) as avg_duration
-    FROM video_views vv
-    JOIN videos v ON vv.video_id = v.id
-    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+    FROM watch_sessions
+    WHERE channel_id = ? 
+      AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+      AND watch_duration > 0
   `, [channel.id, days]);
 
   // Subscriber count
@@ -308,32 +326,31 @@ router.get('/realtime', authenticate, asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Chaîne non trouvée' });
   }
 
-  // Views in last hour
+  // Views in last hour - utiliser watch_sessions pour les données temps réel
   const [lastHour] = await query(`
     SELECT COUNT(*) as views
-    FROM video_views vv
-    JOIN videos v ON vv.video_id = v.id
-    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+    FROM watch_sessions
+    WHERE channel_id = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
   `, [channel.id]);
 
-  // Views per minute for last 30 minutes
+  // Views per minute for last 30 minutes - utiliser watch_sessions
   const viewsPerMinute = await query(`
     SELECT 
-      DATE_FORMAT(viewed_at, '%H:%i') as minute,
+      DATE_FORMAT(started_at, '%H:%i') as minute,
       COUNT(*) as views
-    FROM video_views vv
-    JOIN videos v ON vv.video_id = v.id
-    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+    FROM watch_sessions
+    WHERE channel_id = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)
     GROUP BY minute
     ORDER BY minute ASC
   `, [channel.id]);
 
-  // Currently watching (approximation)
+  // Currently watching - utiliser watch_sessions qui est mis à jour en temps réel
   const [currentlyWatching] = await query(`
     SELECT COUNT(DISTINCT session_id) as count
-    FROM video_views vv
-    JOIN videos v ON vv.video_id = v.id
-    WHERE v.channel_id = ? AND vv.viewed_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+    FROM watch_sessions
+    WHERE channel_id = ? 
+      AND ended_at IS NULL
+      AND last_updated >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
   `, [channel.id]);
 
   res.json({

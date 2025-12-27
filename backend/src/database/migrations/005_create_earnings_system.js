@@ -12,7 +12,8 @@ module.exports = {
         id VARCHAR(36) PRIMARY KEY,
         user_id VARCHAR(36) NOT NULL,
         video_id VARCHAR(36),
-        earning_type ENUM('view', 'ad', 'subscription', 'donation', 'other') NOT NULL,
+        session_id VARCHAR(255),
+        earning_type ENUM('view', 'ad', 'subscription', 'donation', 'like', 'comment', 'share', 'other') NOT NULL,
         amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
         currency VARCHAR(3) DEFAULT 'XOF',
         description TEXT,
@@ -23,7 +24,8 @@ module.exports = {
         FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE SET NULL,
         INDEX idx_user_earnings (user_id, status),
         INDEX idx_created_at (created_at),
-        INDEX idx_earning_type (earning_type)
+        INDEX idx_earning_type (earning_type),
+        INDEX idx_session_id (session_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 

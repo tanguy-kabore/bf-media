@@ -142,7 +142,7 @@ router.get('/feed', authenticate, asyncHandler(async (req, res) => {
   const videos = await query(`
     SELECT v.id, v.title, v.thumbnail_url, v.duration, v.view_count, v.published_at,
            c.id as channel_id, c.name as channel_name, c.handle as channel_handle,
-           COALESCE(c.avatar_url, u.avatar_url) as channel_avatar, c.is_verified as channel_verified
+           COALESCE(c.avatar_url, u.avatar_url) as channel_avatar, u.is_verified as channel_verified
     FROM videos v
     JOIN channels c ON v.channel_id = c.id
     JOIN users u ON c.user_id = u.id

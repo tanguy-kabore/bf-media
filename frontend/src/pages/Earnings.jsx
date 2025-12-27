@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { 
   FiDollarSign, FiTrendingUp, FiClock, FiCheck, FiAlertCircle, 
   FiEye, FiVideo, FiCalendar, FiDownload, FiRefreshCw, FiCreditCard,
-  FiInfo, FiArrowRight, FiArrowUp, FiArrowDown, FiPlay
+  FiInfo, FiArrowRight, FiArrowUp, FiArrowDown, FiPlay, FiHeart,
+  FiThumbsUp, FiMessageSquare, FiShare2
 } from 'react-icons/fi'
 import api from '../services/api'
 import useAuthStore from '../store/authStore'
@@ -12,15 +13,18 @@ const formatCurrency = (amount) => {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: 'XOF',
-    minimumFractionDigits: 0
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(amount || 0)
 }
 
 const formatDate = (date) => {
-  return new Date(date).toLocaleDateString('fr-FR', {
+  return new Date(date).toLocaleString('fr-FR', {
     day: 'numeric',
     month: 'short',
-    year: 'numeric'
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   })
 }
 
@@ -44,19 +48,30 @@ export default function Earnings() {
   const [paymentsPage, setPaymentsPage] = useState(1)
   const [earningsPagination, setEarningsPagination] = useState({})
   const [paymentsPagination, setPaymentsPagination] = useState({})
+  
+  // Filtres pour l'historique
+  const [filters, setFilters] = useState({
+    type: 'all', // all, view, like, comment, share
+    status: 'all', // all, pending, approved, paid
+    dateFrom: '',
+    dateTo: ''
+  })
 
   useEffect(() => {
     fetchSummary()
     fetchRealtime()
     if (activeTab === 'earnings') fetchEarnings()
     if (activeTab === 'payments') fetchPayments()
-  }, [activeTab, earningsPage, paymentsPage])
+  }, [activeTab, earningsPage, paymentsPage, filters])
 
-  // Auto-refresh realtime data every 30 seconds
+  // Auto-refresh realtime data every 10 seconds pour un affichage plus dynamique
   useEffect(() => {
     const interval = setInterval(() => {
-      if (activeTab === 'overview') fetchRealtime()
-    }, 30000)
+      if (activeTab === 'overview') {
+        fetchRealtime()
+        fetchSummary() // Rafraîchir aussi le summary pour les totaux
+      }
+    }, 10000) // 10 secondes pour un affichage plus réactif
     return () => clearInterval(interval)
   }, [activeTab])
 
@@ -82,7 +97,18 @@ export default function Earnings() {
 
   const fetchEarnings = async () => {
     try {
-      const res = await api.get(`/earnings/history?page=${earningsPage}&limit=20`)
+      // Construire les paramètres de requête avec les filtres
+      const params = new URLSearchParams({
+        page: earningsPage,
+        limit: 20
+      })
+      
+      if (filters.type !== 'all') params.append('type', filters.type)
+      if (filters.status !== 'all') params.append('status', filters.status)
+      if (filters.dateFrom) params.append('dateFrom', filters.dateFrom)
+      if (filters.dateTo) params.append('dateTo', filters.dateTo)
+      
+      const res = await api.get(`/earnings/history?${params.toString()}`)
       setEarnings(res.data.earnings)
       setEarningsPagination(res.data.pagination)
     } catch (error) {
@@ -255,16 +281,33 @@ export default function Earnings() {
                         <span className="text-xs text-dark-400">{realtime.current_week?.week_number}</span>
                       </div>
                       <div className="text-2xl sm:text-3xl font-bold text-primary-400 mb-2">
-                        {formatCurrency(realtime.current_week?.total_earnings || 0)}
+                        {formatCurrency(realtime.current_week?.earnings || 0)}
                       </div>
-                      <div className="grid grid-cols-2 gap-3 text-xs sm:text-sm">
+                      <div className="grid grid-cols-2 gap-3 text-xs sm:text-sm mb-3">
                         <div className="flex items-center gap-2">
                           <FiEye className="w-4 h-4 text-blue-400" />
-                          <span className="text-dark-400">{realtime.current_week?.total_views || 0} vues</span>
+                          <span className="text-dark-400">{realtime.current_week?.views || 0} vues</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <FiPlay className="w-4 h-4 text-green-400" />
-                          <span className="text-dark-400">{realtime.current_week?.total_watch_minutes || 0} min</span>
+                          <span className="text-dark-400">{realtime.current_week?.watch_minutes || 0} min</span>
+                        </div>
+                      </div>
+                      <div className="pt-3 border-t border-primary-500/20">
+                        <p className="text-xs text-dark-400 mb-2 font-medium">Engagement</p>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <FiThumbsUp className="w-3.5 h-3.5 text-pink-400" />
+                            <span className="text-dark-400">{realtime.current_week?.likes || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <FiMessageSquare className="w-3.5 h-3.5 text-purple-400" />
+                            <span className="text-dark-400">{realtime.current_week?.comments || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <FiShare2 className="w-3.5 h-3.5 text-orange-400" />
+                            <span className="text-dark-400">{realtime.current_week?.shares || 0}</span>
+                          </div>
                         </div>
                       </div>
                       {realtime.current_week?.estimated_total > 0 && (
@@ -283,21 +326,27 @@ export default function Earnings() {
                         <span className="text-xs text-dark-400">{realtime.last_week?.week_number}</span>
                       </div>
                       <div className="text-2xl sm:text-3xl font-bold mb-2">
-                        {formatCurrency(realtime.last_week?.total_earnings || 0)}
+                        {formatCurrency(realtime.last_week?.earnings || 0)}
                       </div>
                       <div className="flex items-center gap-2">
-                        {realtime.trend > 0 ? (
-                          <span className="flex items-center gap-1 text-green-400 text-sm">
-                            <FiArrowUp className="w-4 h-4" /> +{realtime.trend}%
-                          </span>
-                        ) : realtime.trend < 0 ? (
-                          <span className="flex items-center gap-1 text-red-400 text-sm">
-                            <FiArrowDown className="w-4 h-4" /> {realtime.trend}%
-                          </span>
+                        {realtime.last_week?.earnings > 0 ? (
+                          <>
+                            {realtime.trend > 0 ? (
+                              <span className="flex items-center gap-1 text-green-400 text-sm">
+                                <FiArrowUp className="w-4 h-4" /> +{realtime.trend}%
+                              </span>
+                            ) : realtime.trend < 0 ? (
+                              <span className="flex items-center gap-1 text-red-400 text-sm">
+                                <FiArrowDown className="w-4 h-4" /> {realtime.trend}%
+                              </span>
+                            ) : (
+                              <span className="text-dark-400 text-sm">Pas de changement</span>
+                            )}
+                            <span className="text-xs text-dark-500">vs semaine précédente</span>
+                          </>
                         ) : (
-                          <span className="text-dark-400 text-sm">Pas de changement</span>
+                          <span className="text-dark-400 text-sm">Pas de données pour la semaine précédente</span>
                         )}
-                        <span className="text-xs text-dark-500">vs semaine précédente</span>
                       </div>
                     </div>
                   </div>
@@ -307,7 +356,7 @@ export default function Earnings() {
                 {realtime?.rates && (
                   <div className="bg-dark-800 rounded-xl border border-dark-700 p-4 sm:p-6">
                     <h3 className="font-semibold text-sm sm:text-base mb-4">Comment sont calculés vos revenus ?</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div className="flex items-start gap-3">
                         <div className="p-2 bg-blue-500/20 rounded-lg">
                           <FiEye className="w-4 h-4 text-blue-400" />
@@ -335,6 +384,39 @@ export default function Earnings() {
                           <p className="text-xs text-dark-400">si rétention &gt; {realtime.rates.MIN_RETENTION_FOR_BONUS * 100}%</p>
                         </div>
                       </div>
+                      {realtime.rates.PER_LIKE && (
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 bg-pink-500/20 rounded-lg">
+                            <FiThumbsUp className="w-4 h-4 text-pink-400" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{realtime.rates.PER_LIKE} XOF</p>
+                            <p className="text-xs text-dark-400">par like</p>
+                          </div>
+                        </div>
+                      )}
+                      {realtime.rates.PER_COMMENT && (
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 bg-purple-500/20 rounded-lg">
+                            <FiMessageSquare className="w-4 h-4 text-purple-400" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{realtime.rates.PER_COMMENT} XOF</p>
+                            <p className="text-xs text-dark-400">par commentaire</p>
+                          </div>
+                        </div>
+                      )}
+                      {realtime.rates.PER_SHARE && (
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 bg-orange-500/20 rounded-lg">
+                            <FiShare2 className="w-4 h-4 text-orange-400" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{realtime.rates.PER_SHARE} XOF</p>
+                            <p className="text-xs text-dark-400">par partage</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -417,6 +499,66 @@ export default function Earnings() {
             {/* Earnings History Tab */}
             {activeTab === 'earnings' && (
               <div className="space-y-4">
+                {/* Filtres */}
+                <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+                  <h3 className="font-semibold text-sm mb-4">Filtres</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs text-dark-400 mb-1.5">Type</label>
+                      <select 
+                        value={filters.type}
+                        onChange={(e) => setFilters({...filters, type: e.target.value})}
+                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
+                      >
+                        <option value="all">Tous</option>
+                        <option value="view">Vues</option>
+                        <option value="like">Likes</option>
+                        <option value="comment">Commentaires</option>
+                        <option value="share">Partages</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-dark-400 mb-1.5">Statut</label>
+                      <select 
+                        value={filters.status}
+                        onChange={(e) => setFilters({...filters, status: e.target.value})}
+                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
+                      >
+                        <option value="all">Tous</option>
+                        <option value="pending">En attente</option>
+                        <option value="approved">Approuvé</option>
+                        <option value="paid">Payé</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-dark-400 mb-1.5">Date début</label>
+                      <input 
+                        type="date"
+                        value={filters.dateFrom}
+                        onChange={(e) => setFilters({...filters, dateFrom: e.target.value})}
+                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-dark-400 mb-1.5">Date fin</label>
+                      <input 
+                        type="date"
+                        value={filters.dateTo}
+                        onChange={(e) => setFilters({...filters, dateTo: e.target.value})}
+                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+                  {(filters.type !== 'all' || filters.status !== 'all' || filters.dateFrom || filters.dateTo) && (
+                    <button
+                      onClick={() => setFilters({ type: 'all', status: 'all', dateFrom: '', dateTo: '' })}
+                      className="mt-3 text-xs text-primary-400 hover:text-primary-300"
+                    >
+                      Réinitialiser les filtres
+                    </button>
+                  )}
+                </div>
+
                 {earnings.length === 0 ? (
                   <div className="text-center py-12">
                     <FiDollarSign className="w-12 h-12 text-dark-600 mx-auto mb-3" />
@@ -425,7 +567,7 @@ export default function Earnings() {
                 ) : (
                   <>
                     {/* Mobile Cards */}
-                    <div className="block sm:hidden space-y-3">
+                    <div className="block lg:hidden space-y-3">
                       {earnings.map((earning) => (
                         <div key={earning.id} className="bg-dark-800 rounded-lg border border-dark-700 p-4">
                           <div className="flex items-start justify-between mb-3">
@@ -445,8 +587,19 @@ export default function Earnings() {
                               {earning.status === 'paid' ? 'Payé' : earning.status === 'approved' ? 'Approuvé' : 'En attente'}
                             </span>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-dark-500 capitalize">{earning.earning_type}</span>
+                          <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-dark-500 capitalize">{earning.earning_type}</span>
+                            </div>
+                            {earning.earning_type === 'view' && earning.description && (
+                              <div className="flex items-center gap-1.5 text-dark-400">
+                                <FiPlay className="w-3 h-3" />
+                                {earning.description.match(/(\d+)\s*min/)?.[1] || 0} min
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t border-dark-700">
+                            <span className="text-xs text-dark-500">Montant</span>
                             <span className="text-lg font-bold text-primary-400">{formatCurrency(earning.amount)}</span>
                           </div>
                         </div>
@@ -454,41 +607,72 @@ export default function Earnings() {
                     </div>
 
                     {/* Desktop Table */}
-                    <div className="hidden sm:block overflow-x-auto">
+                    <div className="hidden lg:block overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-dark-800 border-b border-dark-700">
                           <tr>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-dark-400">Date</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-dark-400">Description</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-dark-400">Type</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-dark-400">Montant</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-dark-400">Statut</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-dark-400">Date</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-dark-400">Description</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-dark-400">Type</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-dark-400">Détails</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-dark-400">Montant</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-dark-400">Statut</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-dark-700">
-                          {earnings.map((earning) => (
-                            <tr key={earning.id} className="hover:bg-dark-800/50">
-                              <td className="px-4 py-3 text-sm">{formatDate(earning.created_at)}</td>
-                              <td className="px-4 py-3 text-sm">
-                                <div className="max-w-xs truncate">
-                                  {earning.video_title || earning.description || 'Revenu'}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-sm capitalize">{earning.earning_type}</td>
-                              <td className="px-4 py-3 text-sm font-semibold text-primary-400">
-                                {formatCurrency(earning.amount)}
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className={`px-2 py-1 rounded text-xs ${
-                                  earning.status === 'paid' ? 'bg-green-500/20 text-green-400' :
-                                  earning.status === 'approved' ? 'bg-blue-500/20 text-blue-400' :
-                                  'bg-yellow-500/20 text-yellow-400'
-                                }`}>
-                                  {earning.status === 'paid' ? 'Payé' : earning.status === 'approved' ? 'Approuvé' : 'En attente'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
+                          {earnings.map((earning) => {
+                            // Extraire les détails de la description
+                            const minutes = earning.description?.match(/(\d+)\s*min/)?.[1] || 0
+                            const retention = earning.description?.match(/(\d+)%/)?.[1] || 0
+                            
+                            return (
+                              <tr key={earning.id} className="hover:bg-dark-800/50">
+                                <td className="px-3 py-3 text-xs whitespace-nowrap">{formatDate(earning.created_at)}</td>
+                                <td className="px-3 py-3 text-xs">
+                                  <div className="max-w-[200px] truncate">
+                                    {earning.video_title || earning.description || 'Revenu'}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-3 text-xs">
+                                  <span className="capitalize inline-flex items-center gap-1">
+                                    {earning.earning_type === 'view' && <FiEye className="w-3 h-3 text-blue-400" />}
+                                    {earning.earning_type === 'like' && <FiThumbsUp className="w-3 h-3 text-pink-400" />}
+                                    {earning.earning_type === 'comment' && <FiMessageSquare className="w-3 h-3 text-purple-400" />}
+                                    {earning.earning_type === 'share' && <FiShare2 className="w-3 h-3 text-orange-400" />}
+                                    {earning.earning_type === 'view' ? 'Vue' : earning.earning_type === 'like' ? 'Like' : earning.earning_type === 'comment' ? 'Commentaire' : earning.earning_type === 'share' ? 'Partage' : earning.earning_type}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3 text-xs text-dark-400">
+                                  {earning.earning_type === 'view' && minutes > 0 && (
+                                    <div className="flex items-center gap-3">
+                                      <span className="flex items-center gap-1">
+                                        <FiPlay className="w-3 h-3" />
+                                        {minutes} min
+                                      </span>
+                                      {retention > 0 && (
+                                        <span className="text-dark-500">
+                                          {retention}% rét.
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {earning.earning_type !== 'view' && <span className="text-dark-600">-</span>}
+                                </td>
+                                <td className="px-3 py-3 text-xs font-semibold text-primary-400 whitespace-nowrap">
+                                  {formatCurrency(earning.amount)}
+                                </td>
+                                <td className="px-3 py-3">
+                                  <span className={`px-2 py-1 rounded text-xs whitespace-nowrap ${
+                                    earning.status === 'paid' ? 'bg-green-500/20 text-green-400' :
+                                    earning.status === 'approved' ? 'bg-blue-500/20 text-blue-400' :
+                                    'bg-yellow-500/20 text-yellow-400'
+                                  }`}>
+                                    {earning.status === 'paid' ? 'Payé' : earning.status === 'approved' ? 'Approuvé' : 'En attente'}
+                                  </span>
+                                </td>
+                              </tr>
+                            )
+                          })}
                         </tbody>
                       </table>
                     </div>
